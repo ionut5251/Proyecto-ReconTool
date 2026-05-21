@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import nmap
 import json
-# dsa
+
 app = FastAPI()
 
 scanner = nmap.PortScanner()
