@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReconTool — Búsqueda</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body class="page-home">
+  <header class="site-header">
+    <a href="/" class="logo">Recon<span>Tool</span></a>
+    <p class="tagline">Reconocimiento de hosts — estilo Shodan (académico)</p>
+  </header>
+
+  <main class="search-hero">
+    <h1>¿Qué IP quieres analizar?</h1>
+    <form id="search-form" class="search-box" autocomplete="off">
+      <input
+        id="target-input"
+        type="text"
+        name="target"
+        placeholder="Ej: 192.168.1.1 o scanme.nmap.org"
+        required
+        spellcheck="false"
+      />
+      <button type="submit">Escanear</button>
+    </form>
+    <p class="hint">Solo escanea objetivos que tengas permiso para probar (lab, HTB, tu red).</p>
+  </main>
+
+  <footer class="site-footer">
+    <span>nmap · FastAPI · Master Ciberseguridad</span>
+  </footer>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/search.js"></script>
+</body>
+</html>

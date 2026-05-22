@@ -1,0 +1,32 @@
+{
+  "Apache httpd 2.4.7": {
+    "cve": "CVE-2017-5638",
+    "cvss": 10.0,
+    "severity": "Critical",
+    "description": "Remote code execution vulnerability (ejemplo lab)"
+  },
+  "OpenSSH 6.6.1p1 Ubuntu 2ubuntu2.13": {
+    "cve": "CVE-2015-5600",
+    "cvss": 7.5,
+    "severity": "High",
+    "description": "Authentication brute force vulnerability (ejemplo lab)"
+  },
+  "vsftpd 2.3.4": {
+    "cve": "CVE-2011-2523",
+    "cvss": 9.8,
+    "severity": "Critical",
+    "description": "Backdoor command execution en vsftpd 2.3.4 (máquina clásica lab)"
+  },
+  "Samba 4.6.2": {
+    "cve": "CVE-2017-7494",
+    "cvss": 9.8,
+    "severity": "Critical",
+    "description": "Remote code execution via writable share (SambaCry)"
+  },
+  "Microsoft Windows RPC": {
+    "cve": "CVE-2008-4250",
+    "cvss": 10.0,
+    "severity": "Critical",
+    "description": "MS08-067 — contexto histórico para labs legacy"
+  }
+}

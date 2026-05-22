@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReconTool — Resultados</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body class="page-results">
+  <header class="site-header">
+    <a href="/" class="logo">Recon<span>Tool</span></a>
+    <form id="mini-search" class="mini-search" autocomplete="off">
+      <input id="mini-target" type="text" placeholder="Nueva IP..." required />
+      <button type="submit">Buscar</button>
+    </form>
+  </header>
+
+  <main class="results-layout">
+    <section class="target-banner">
+      <h1 id="target-title">—</h1>
+      <p id="scan-status" class="status">Preparando escaneo…</p>
+    </section>
+
+    <section id="error-panel" class="panel panel-error hidden"></section>
+
+    <section id="os-panel" class="panel hidden">
+      <h2>Sistema operativo (detección nmap)</h2>
+      <ul id="os-list" class="os-list"></ul>
+    </section>
+
+    <section id="ports-panel" class="panel hidden">
+      <h2>Puertos y servicios abiertos</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Puerto</th>
+              <th>Estado</th>
+              <th>Servicio</th>
+              <th>Producto / versión</th>
+              <th>Info extra</th>
+              <th>CVEs detectados</th>
+            </tr>
+          </thead>
+          <tbody id="ports-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="empty-panel" class="panel panel-muted hidden">
+      <p>No se encontraron puertos abiertos con los filtros actuales (<code>--open</code>).</p>
+    </section>
+
+    <section id="ai-panel" class="panel hidden">
+      <h2>Vectores de ataque sugeridos (IA)</h2>
+      <p id="ai-summary" class="ai-summary"></p>
+      <div id="ai-vectors" class="ai-vectors"></div>
+      <h3 class="subheading">Próximos pasos</h3>
+      <ul id="ai-next-steps" class="ai-steps"></ul>
+      <p id="ai-meta" class="ai-meta"></p>
+    </section>
+
+    <section id="ai-disabled-panel" class="panel panel-muted hidden">
+      <h2>Análisis IA</h2>
+      <p id="ai-disabled-msg"></p>
+    </section>
+  </main>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/results.js"></script>
+</body>
+</html>
