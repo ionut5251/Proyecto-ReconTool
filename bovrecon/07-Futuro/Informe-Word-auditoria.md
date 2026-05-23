@@ -1,83 +1,59 @@
-# Futuro: informe Word de auditoría
+# Informe Word de auditoría
 
-#recontool #futuro #informe #word
+#recontool #informe #word
 
-Relacionado: [[Auditoria-y-trazabilidad-IA]] · [[../01-Proyecto/Vision-y-objetivos]]
-
----
-
-## Objetivo
-
-Al finalizar un engagement de lab, generar un **documento Word** (.docx) que incluya:
-
-1. Resumen ejecutivo del recon.
-2. Tabla de puertos y servicios.
-3. CVEs identificados (local + NVD).
-4. Vectores sugeridos por IA.
-5. **Pasos realizados** con timestamps.
-6. **Capturas de pantalla** (UI, terminal, pruebas manuales).
-
-Carpeta prevista para imágenes: `pics/` en la raíz del repo (actualmente vacía).
+Relacionado: [[../03-Backend/Servicio-informe-Word]] · [[Auditoria-y-trazabilidad-IA]] · [[../03-Backend/Servicio-FTP-exploit]]
 
 ---
 
-## Estado actual
+## Estado: ✅ implementado (v0.2)
 
-- No hay generación de documentos.
-- `pics/` reservada para assets de informe.
-- Datos solo en respuesta HTTP JSON (no persistidos).
+Al capturar una **flag**, la UI muestra el botón **Descargar informe Word (.docx)**.
 
 ---
 
-## Stack propuesto
+## Contenido del informe
 
-| Componente | Librería / herramienta |
-|------------|------------------------|
-| Plantilla Word | `python-docx` |
-| Datos | JSON de sesión de auditoría (ver [[Auditoria-y-trazabilidad-IA]]) |
-| Imágenes | PNG/JPG en `pics/{session_id}/` |
-| Export | Endpoint `POST /api/report` o script CLI |
+Estructura inspirada en `informe_pentest.docx` (ejemplo académico):
 
----
-
-## Estructura del informe (borrador)
-
-1. Portada — ReconTool, target, fecha, autor (alumno).
-2. Alcance y autorización — disclaimer lab/HTB.
-3. Metodología — nmap flags, fuentes CVE, modelo IA.
-4. Hallazgos técnicos — tablas auto-generadas.
-5. Análisis IA — vectores y recomendaciones.
-6. Cronología — fases del pipeline.
-7. Anexos — capturas numeradas.
+1. Portada — objetivo, puertos, fecha, riesgo, auditor, clasificación
+2. Índice
+3. Resumen ejecutivo
+4. Metodología y alcance (tabla fases/herramientas)
+5. Desarrollo de la auditoría — pasos nmap, CVE, FTP, IA
+6. Cronología del pipeline
+7. Tabla de vulnerabilidades
+8. Recomendaciones
+9. Flag obtenida
 
 ---
 
-## Flujo de trabajo usuario
+## API
 
-1. Completar scan en UI.
-2. Subir o auto-guardar capturas en `pics/`.
-3. Clic “Exportar informe” → descarga `.docx`.
-4. Revisión manual antes de entregar en máster.
+`POST /api/report` con body:
 
----
+```json
+{ "scan_data": { ... resultado de /api/scan ... }, "auditor": "Opcional" }
+```
 
-## Consideraciones
-
-- No incluir secretos (`.env`, API keys) en el Word.
-- Censar IPs reales si el informe sale del lab (usar placeholders).
-- Versionar plantillas `.docx` opcionales en `docs/templates/` (futuro).
+Solo genera informe si `exploitation.flag_captured === true`.
 
 ---
 
-## Dependencias roadmap
+## Configuración
 
-Bloqueado en parte por [[Auditoria-y-trazabilidad-IA]] (necesita logs de sesión).
+En `.env`:
 
-Ver [[../01-Proyecto/Roadmap]].
+```env
+REPORT_AUDITOR_NAME=Tu Nombre — Máster Ciberseguridad
+```
 
 ---
 
-## Enlaces
+## Próximas mejoras
 
-- [[Auditoria-y-trazabilidad-IA]]
-- [[../02-Arquitectura/Mapa-del-repositorio#pics]]
+- Capturas de pantalla embebidas (`pics/`)
+- Plantilla `.docx` personalizable
+- Informe parcial sin flag (solo recon)
+
+Ver [[Auditoria-y-trazabilidad-IA]].

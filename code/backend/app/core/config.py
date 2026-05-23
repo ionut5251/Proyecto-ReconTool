@@ -24,3 +24,5 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 
 AI_PROVIDER = os.getenv("AI_PROVIDER", "auto").lower()
+
+REPORT_AUDITOR_NAME = os.getenv("REPORT_AUDITOR_NAME", "ReconTool — Auditoría automática")

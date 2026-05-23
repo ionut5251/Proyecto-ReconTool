@@ -13,3 +13,8 @@ class ScanRequest(BaseModel):
 
 class AnalyzeRequest(BaseModel):
     scan_data: dict = Field(..., description="Resultado previo de un escaneo")
+
+
+class ReportRequest(BaseModel):
+    scan_data: dict = Field(..., description="Resultado completo del escaneo")
+    auditor: str = Field("", description="Nombre del auditor (opcional)")

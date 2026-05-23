@@ -9,6 +9,7 @@ def _check_dependencies() -> None:
         ("httpx", "httpx"),
         ("dotenv", "python-dotenv"),
         ("pydantic", "pydantic"),
+        ("docx", "python-docx"),
     ]
     missing = []
     for module, package in required:

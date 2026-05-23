@@ -36,7 +36,13 @@ Cargado por `python-dotenv` en `app/core/config.py` al importar el módulo.
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Servidor Ollama |
 | `OLLAMA_MODEL` | `llama3.2` | Modelo local |
 
-### Código (no env)
+### Informe Word
+
+| Variable | Default | Descripción |
+|----------|---------|-------------|
+| `REPORT_AUDITOR_NAME` | `ReconTool — Auditoría automática` | Nombre en portada del informe |
+
+---
 
 | Constante | Archivo | Valor |
 |-----------|---------|-------|

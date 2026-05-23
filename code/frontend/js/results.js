@@ -80,6 +80,7 @@ function renderExploitation(exploitation) {
   const flagPanel = document.getElementById("flag-panel");
   const flagContent = document.getElementById("flag-content");
   const stepsBox = document.getElementById("exploit-steps");
+  const reportBtn = document.getElementById("download-report-btn");
 
   hide(panel);
   hide(flagPanel);
@@ -123,6 +124,58 @@ function renderExploitation(exploitation) {
       )
       .join("");
     show(flagPanel);
+    if (reportBtn) {
+      reportBtn.disabled = false;
+      reportBtn.textContent = "Descargar informe Word (.docx)";
+    }
+  }
+}
+
+async function downloadAuditReport() {
+  if (!window.lastScanData?.exploitation?.flag_captured) {
+    alert("El informe solo está disponible cuando se ha capturado una flag.");
+    return;
+  }
+
+  const btn = document.getElementById("download-report-btn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Generando informe…";
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/api/report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scan_data: window.lastScanData }),
+    });
+
+    const contentType = response.headers.get("Content-Type") || "";
+    if (!response.ok || contentType.includes("application/json")) {
+      const err = await response.json();
+      throw new Error(err.error || "No se pudo generar el informe");
+    }
+
+    const blob = await response.blob();
+    const disposition = response.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename=\"?([^\";]+)\"?/);
+    const filename = match ? match[1] : "informe_pentest.docx";
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert(err.message || "Error al descargar el informe");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Descargar informe Word (.docx)";
+    }
   }
 }
 
@@ -207,6 +260,8 @@ async function runScan(target) {
 }
 
 function renderResults(data) {
+  window.lastScanData = data;
+
   const status = document.getElementById("scan-status");
   const errorPanel = document.getElementById("error-panel");
   const warnPanel = document.getElementById("warn-panel");
@@ -316,6 +371,11 @@ function init() {
     url.searchParams.set("target", next);
     window.location.href = url.toString();
   });
+
+  const reportBtn = document.getElementById("download-report-btn");
+  if (reportBtn) {
+    reportBtn.addEventListener("click", downloadAuditReport);
+  }
 
   runScan(target)
     .then(renderResults)
