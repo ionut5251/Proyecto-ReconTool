@@ -57,6 +57,75 @@ function renderCveCell(row) {
     .join("");
 }
 
+function renderPipelineLog(log) {
+  const panel = document.getElementById("pipeline-panel");
+  const list = document.getElementById("pipeline-list");
+  hide(panel);
+
+  if (!log?.length) return;
+
+  list.innerHTML = "";
+  log.forEach((entry) => {
+    const li = document.createElement("li");
+    li.className = `pipeline-${entry.status || "ok"}`;
+    const msg = entry.message ? ` — ${entry.message}` : "";
+    li.textContent = `${entry.phase}: ${entry.status}${msg}`;
+    list.appendChild(li);
+  });
+  show(panel);
+}
+
+function renderExploitation(exploitation) {
+  const panel = document.getElementById("exploit-panel");
+  const flagPanel = document.getElementById("flag-panel");
+  const flagContent = document.getElementById("flag-content");
+  const stepsBox = document.getElementById("exploit-steps");
+
+  hide(panel);
+  hide(flagPanel);
+
+  if (!exploitation?.attempts?.length) return;
+
+  stepsBox.innerHTML = "";
+  exploitation.attempts.forEach((attempt) => {
+    const block = document.createElement("div");
+    block.className = "exploit-block";
+    const title = document.createElement("h3");
+    title.textContent = `FTP ${attempt.host}:${attempt.port}`;
+    block.appendChild(title);
+
+    const ul = document.createElement("ul");
+    (attempt.steps || []).forEach((step) => {
+      const li = document.createElement("li");
+      li.className = `step-${step.status || "ok"}`;
+      li.textContent = `[${step.action}] ${step.detail}`;
+      ul.appendChild(li);
+    });
+    block.appendChild(ul);
+
+    if (attempt.error) {
+      const err = document.createElement("p");
+      err.className = "muted";
+      err.textContent = `Error: ${attempt.error}`;
+      block.appendChild(err);
+    }
+
+    stepsBox.appendChild(block);
+  });
+
+  show(panel);
+
+  if (exploitation.flag_captured && exploitation.flags?.length) {
+    flagContent.innerHTML = exploitation.flags
+      .map(
+        (f) =>
+          `<p><strong>${escapeHtml(f.filename)}</strong></p><pre class="flag-pre">${escapeHtml(f.content)}</pre>`
+      )
+      .join("");
+    show(flagPanel);
+  }
+}
+
 function renderAiAnalysis(ai) {
   const aiPanel = document.getElementById("ai-panel");
   const disabledPanel = document.getElementById("ai-disabled-panel");
@@ -66,7 +135,7 @@ function renderAiAnalysis(ai) {
 
   if (!ai) return;
 
-  if (!ai.enabled) {
+  if (!ai.enabled && !ai.analysis) {
     document.getElementById("ai-disabled-msg").textContent =
       ai.message || "IA no disponible. Revisa el archivo .env del backend.";
     show(disabledPanel);
@@ -107,14 +176,16 @@ function renderAiAnalysis(ai) {
     stepsList.appendChild(li);
   });
 
-  document.getElementById("ai-meta").textContent = `Proveedor: ${ai.provider || "?"} · Modelo: ${ai.model || "?"}`;
+  const provider = ai.provider || "?";
+  const model = ai.model || "?";
+  document.getElementById("ai-meta").textContent = `Fuente: ${provider} · Modelo: ${model}`;
   show(aiPanel);
 }
 
 async function runScan(target) {
   const status = document.getElementById("scan-status");
   status.textContent =
-    "Escaneando con nmap, consultando NVD y generando vectores IA (puede tardar varios minutos)…";
+    "Escaneando (nmap → CVE → FTP/flag → IA). Puede tardar varios minutos…";
   status.className = "status scanning";
 
   const response = await fetch(`${API_BASE}/api/scan`, {
@@ -124,8 +195,13 @@ async function runScan(target) {
       target,
       enrich_cve: true,
       ai_analyze: true,
+      auto_exploit: true,
     }),
   });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
 
   return response.json();
 }
@@ -133,21 +209,36 @@ async function runScan(target) {
 function renderResults(data) {
   const status = document.getElementById("scan-status");
   const errorPanel = document.getElementById("error-panel");
+  const warnPanel = document.getElementById("warn-panel");
   const osPanel = document.getElementById("os-panel");
   const portsPanel = document.getElementById("ports-panel");
   const emptyPanel = document.getElementById("empty-panel");
 
   hide(errorPanel);
+  hide(warnPanel);
   hide(osPanel);
   hide(portsPanel);
   hide(emptyPanel);
 
-  if (data.error) {
+  const hasResults = (data.results || []).length > 0;
+
+  if (data.error && !hasResults) {
     errorPanel.textContent = data.error;
     show(errorPanel);
     status.textContent = "Error en el escaneo";
     status.className = "status";
+    renderPipelineLog(data.pipeline_log);
     return;
+  }
+
+  if (data.error && hasResults) {
+    warnPanel.textContent = `Aviso parcial: ${data.error}`;
+    show(warnPanel);
+  }
+
+  if (data.warnings?.length) {
+    warnPanel.textContent = data.warnings.join(" | ");
+    show(warnPanel);
   }
 
   const cveCount = (data.results || []).reduce(
@@ -155,8 +246,12 @@ function renderResults(data) {
     0
   );
 
-  status.textContent = `Completado — ${data.results?.length ?? 0} puerto(s), ${cveCount} hallazgo(s) CVE`;
+  const flagText = data.exploitation?.flag_captured ? " · FLAG OK" : "";
+  status.textContent = `Completado — ${data.results?.length ?? 0} puerto(s), ${cveCount} CVE(s)${flagText}`;
   status.className = "status done";
+
+  renderPipelineLog(data.pipeline_log);
+  renderExploitation(data.exploitation);
 
   if (data.os?.length) {
     const osList = document.getElementById("os-list");
@@ -169,7 +264,7 @@ function renderResults(data) {
     show(osPanel);
   }
 
-  if (!data.results?.length) {
+  if (!hasResults) {
     show(emptyPanel);
     renderAiAnalysis(data.ai_analysis);
     return;

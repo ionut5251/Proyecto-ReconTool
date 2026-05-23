@@ -8,7 +8,10 @@ vulnerabilities_db = load_vulnerabilities_db()
 
 
 def scan_target(target: str) -> dict:
-    scanner.scan(target, arguments=NMAP_ARGUMENTS)
+    try:
+        scanner.scan(target, arguments=NMAP_ARGUMENTS)
+    except Exception as exc:
+        return {"target": target, "error": str(exc), "results": [], "os": []}
 
     results = []
     os_info = []
@@ -40,7 +43,7 @@ def scan_target(target: str) -> dict:
                 results.append(
                     {
                         "host": host,
-                        "port": port,
+                        "port": int(port),
                         "state": state,
                         "service": service,
                         "product": product,

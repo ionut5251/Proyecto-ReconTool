@@ -11,7 +11,12 @@ router = APIRouter()
 def home():
     return {
         "message": "ReconTool API running",
-        "features": ["nmap_scan", "nvd_cve_lookup", "ai_attack_vectors"],
+        "features": [
+            "nmap_scan",
+            "nvd_cve_lookup",
+            "ai_attack_vectors",
+            "auto_exploit_ftp",
+        ],
     }
 
 
@@ -22,9 +27,10 @@ def scan_endpoint(data: ScanRequest):
             data.target,
             enrich_cve=data.enrich_cve,
             ai_analyze=data.ai_analyze,
+            auto_exploit=data.auto_exploit,
         )
     except Exception as exc:
-        return {"error": str(exc)}
+        return {"target": data.target, "error": str(exc), "pipeline_log": []}
 
 
 @router.post("/analyze")
