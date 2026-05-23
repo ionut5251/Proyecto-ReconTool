@@ -68,6 +68,24 @@ Script: `code/frontend/js/results.js` → `downloadAuditReport()`.
 
 ---
 
+## Capturas / evidencias gráficas
+
+Carpeta: `code/backend/data/screenshots/<IP>/`
+
+| Archivo | Paso |
+|---------|------|
+| `01_nmap.png` | Escaneo / puertos |
+| `02_cve.png` | CVEs |
+| `03_exploit.png` | Explotación FTP |
+| `04_ia.png` | Panel IA |
+| `99_flag.png` | Flag final |
+
+Si existe el PNG, se incrusta en el Word. Si no, placeholder indicando qué añadir.
+
+**v2 (segunda entrega):** capturas automáticas — [[../07-Futuro/Informe-Word-auditoria]].
+
+---
+
 ## Enlaces
 
 - [[Configuracion-env#Informe Word]]

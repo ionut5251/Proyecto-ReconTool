@@ -60,14 +60,13 @@ Probar con `scanme.nmap.org` (servicio público de prueba de nmap).
 Ver guía completa: [[Despliegue-Kali]].
 
 ```bash
-sudo apt install -y nmap python3-venv python3-pip
-cd ~/Proyecto-ReconTool/code/backend
-python3 -m venv venv
-./venv/bin/pip install -r requirements.txt
-cp .env.example .env
-chmod +x start-kali.sh
-./start-kali.sh
+cd ~/Proyecto-ReconTool
+git pull
+chmod +x recontool
+./recontool
 ```
+
+El script `recontool` crea venv si falta, ejecuta `pip install -r requirements.txt` y arranca el servidor.
 
 > No uses `sudo python run.py` — ver [[Despliegue-Kali#6. Arrancar ReconTool]].
 

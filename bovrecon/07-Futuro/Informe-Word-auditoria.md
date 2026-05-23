@@ -2,58 +2,57 @@
 
 #recontool #informe #word
 
-Relacionado: [[../03-Backend/Servicio-informe-Word]] · [[Auditoria-y-trazabilidad-IA]] · [[../03-Backend/Servicio-FTP-exploit]]
+Relacionado: [[../03-Backend/Servicio-informe-Word]] · [[Auditoria-y-trazabilidad-IA]]
 
 ---
 
-## Estado: ✅ implementado (v0.2)
+## Estado: ✅ implementado (v1) · 🔄 capturas manuales
 
-Al capturar una **flag**, la UI muestra el botón **Descargar informe Word (.docx)**.
-
----
-
-## Contenido del informe
-
-Estructura inspirada en `informe_pentest.docx` (ejemplo académico):
-
-1. Portada — objetivo, puertos, fecha, riesgo, auditor, clasificación
-2. Índice
-3. Resumen ejecutivo
-4. Metodología y alcance (tabla fases/herramientas)
-5. Desarrollo de la auditoría — pasos nmap, CVE, FTP, IA
-6. Cronología del pipeline
-7. Tabla de vulnerabilidades
-8. Recomendaciones
-9. Flag obtenida
+Al capturar una **flag**, la UI permite **Descargar informe Word (.docx)**.
 
 ---
 
-## API
+## Evidencias gráficas (importante para el máster y clientes)
 
-`POST /api/report` con body:
+El informe del ejemplo académico incluye **fotos en cada paso**. ReconTool v1 soporta esto así:
 
-```json
-{ "scan_data": { ... resultado de /api/scan ... }, "auditor": "Opcional" }
+### Carpeta de capturas
+
+```
+code/backend/data/screenshots/<IP>/
+├── 01_nmap.png      ← pantallazo escaneo / tabla puertos
+├── 02_cve.png       ← CVEs (opcional si aplica)
+├── 03_exploit.png   ← FTP / pasos explotación
+├── 04_ia.png        ← panel IA (opcional)
+└── 99_flag.png      ← flag en pantalla
 ```
 
-Solo genera informe si `exploitation.flag_captured === true`.
+La IP usa formato sanitizado (ej. `10.10.10.123` → carpeta `10.10.10.123`).
+
+### Flujo recomendado
+
+1. Ejecutar scan y hacer capturas durante el proceso (web, terminal, FTP).
+2. Guardar PNG en la carpeta anterior **antes** de pulsar descargar informe.
+3. Regenerar informe → las imágenes se incrustan con pie "Figura N".
+4. Si falta una imagen → placeholder naranja indicando qué archivo añadir.
+
+### Segunda entrega (planificado)
+
+- Captura automática de la UI al completar cada fase del pipeline
+- Subida drag-and-drop desde la web
+- Menos texto, más figuras (informe orientado a cliente)
 
 ---
 
-## Configuración
+## Contenido textual del informe
 
-En `.env`:
+Portada, índice, resumen, metodología, pasos, CVEs, recomendaciones, flag.
 
-```env
-REPORT_AUDITOR_NAME=Tu Nombre — Máster Ciberseguridad
-```
+Ver [[../03-Backend/Servicio-informe-Word]].
 
 ---
 
-## Próximas mejoras
+## Enlaces
 
-- Capturas de pantalla embebidas (`pics/`)
-- Plantilla `.docx` personalizable
-- Informe parcial sin flag (solo recon)
-
-Ver [[Auditoria-y-trazabilidad-IA]].
+- [[../01-Proyecto/Entrega-v1-estado]]
+- [[Auditoria-y-trazabilidad-IA]]

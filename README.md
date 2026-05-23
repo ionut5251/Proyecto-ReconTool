@@ -19,7 +19,13 @@ cp .env.example .env
 python run.py
 ```
 
-**Kali (con nmap privilegiado):** `./start-kali.sh` — ver [bovrecon/05-Operaciones/Despliegue-Kali.md](bovrecon/05-Operaciones/Despliegue-Kali.md).
+**Kali (un comando):**
+
+```bash
+chmod +x recontool && ./recontool
+```
+
+Instala dependencias y arranca el servidor. Ver [bovrecon/05-Operaciones/Despliegue-Kali.md](bovrecon/05-Operaciones/Despliegue-Kali.md).
 
 Abrir http://127.0.0.1:8000
 

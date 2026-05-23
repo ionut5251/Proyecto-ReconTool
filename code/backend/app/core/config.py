@@ -8,6 +8,7 @@ load_dotenv()
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = BACKEND_ROOT / "data"
 VULNERABILITIES_DB_PATH = DATA_DIR / "vulnerabilities.json"
+SCREENSHOTS_DIR = DATA_DIR / "screenshots"
 
 NMAP_ARGUMENTS = "-sS -sV -O --open -Pn -n -T4"
 

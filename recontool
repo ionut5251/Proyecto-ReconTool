@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# ReconTool — arranque todo-en-uno (Kali / Linux)
+# Uso: ./recontool   o   sudo ./recontool
+set -e
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+BACKEND="$ROOT/code/backend"
+
+cd "$BACKEND"
+
+echo "=== ReconTool ==="
+echo "Directorio: $BACKEND"
+echo ""
+
+# venv
+if [[ ! -d venv ]]; then
+  echo "[1/3] Creando entorno virtual..."
+  python3 -m venv venv
+else
+  echo "[1/3] Entorno virtual OK"
+fi
+
+echo "[2/3] Instalando / actualizando dependencias (requirements.txt)..."
+./venv/bin/pip install -q --upgrade pip
+./venv/bin/pip install -q -r requirements.txt
+
+# nmap binario
+if ! command -v nmap >/dev/null 2>&1; then
+  echo "Instalando nmap (requiere sudo)..."
+  sudo apt update && sudo apt install -y nmap
+fi
+
+echo "[3/3] Arrancando servidor en http://127.0.0.1:8000"
+echo ""
+echo "  NO uses: sudo python run.py"
+echo "  Este script ya usa: sudo ./venv/bin/python run.py"
+echo ""
+
+if [[ "$EUID" -eq 0 ]]; then
+  exec ./venv/bin/python run.py
+fi
+
+exec sudo ./venv/bin/python run.py

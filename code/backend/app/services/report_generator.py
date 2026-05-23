@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import io
+import re
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Optional
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.shared import Pt, RGBColor
+from docx.shared import Inches, Pt, RGBColor
 
-from app.core.config import NMAP_ARGUMENTS, REPORT_AUDITOR_NAME
+from app.core.config import NMAP_ARGUMENTS, REPORT_AUDITOR_NAME, SCREENSHOTS_DIR
 
 
 def _risk_level(scan_data: dict) -> str:
@@ -42,6 +44,56 @@ def _ports_summary(scan_data: dict) -> str:
     return ", ".join(parts) if parts else "Sin puertos abiertos detectados"
 
 
+def _safe_target(target: str) -> str:
+    return re.sub(r"[^\w.\-]", "_", str(target))
+
+
+def _find_screenshot(target: str, step_num: int, step_key: str) -> Optional[Path]:
+    base = SCREENSHOTS_DIR / _safe_target(target)
+    if not base.is_dir():
+        return None
+
+    exts = (".png", ".jpg", ".jpeg", ".webp")
+    patterns = [f"{step_num:02d}_{step_key}", f"{step_num:02d}", step_key, "flag" if step_key == "flag" else ""]
+
+    for pattern in patterns:
+        if not pattern:
+            continue
+        for ext in exts:
+            path = base / f"{pattern}{ext}"
+            if path.is_file():
+                return path
+    return None
+
+
+def _add_evidence_block(
+    doc: Document,
+    target: str,
+    step_num: int,
+    step_key: str,
+    caption: str,
+) -> None:
+    doc.add_paragraph()
+    p = doc.add_paragraph()
+    p.add_run("Evidencia gráfica\n").bold = True
+
+    image_path = _find_screenshot(target, step_num, step_key)
+    if image_path:
+        doc.add_picture(str(image_path), width=Inches(5.5))
+        cap = doc.add_paragraph(f"Figura {step_num}: {caption}")
+        cap.runs[0].italic = True
+        cap.runs[0].font.size = Pt(9)
+        return
+
+    folder = f"data/screenshots/{_safe_target(target)}/"
+    placeholder = doc.add_paragraph(
+        f"[Captura pendiente — añadir {folder}{step_num:02d}_{step_key}.png "
+        f"(pantallazo del paso: {caption})]"
+    )
+    placeholder.runs[0].italic = True
+    placeholder.runs[0].font.color.rgb = RGBColor(0x99, 0x66, 0x00)
+
+
 def _add_label_value(doc: Document, label: str, value: str) -> None:
     p = doc.add_paragraph()
     run_label = p.add_run(f"{label}\n")
@@ -57,11 +109,14 @@ def _add_step_block(
     tool: str,
     objective: str,
     findings: str,
+    target: str,
+    step_key: str,
 ) -> None:
     doc.add_heading(f"Paso {step_num}  —  {title}", level=2)
     _add_label_value(doc, "Herramienta", tool)
     _add_label_value(doc, "Objetivo", objective)
     _add_label_value(doc, "Hallazgos / Resultado", findings)
+    _add_evidence_block(doc, target, step_num, step_key, title)
     doc.add_paragraph()
 
 
@@ -76,6 +131,7 @@ def _build_audit_steps(scan_data: dict) -> list[dict]:
 
     steps.append(
         {
+            "key": "nmap",
             "title": "Escaneo de puertos y servicios",
             "tool": f"nmap ({NMAP_ARGUMENTS})",
             "objective": f"Detectar puertos abiertos y fingerprint de servicios en {target}.",
@@ -95,6 +151,7 @@ def _build_audit_steps(scan_data: dict) -> list[dict]:
     if cve_lines:
         steps.append(
             {
+                "key": "cve",
                 "title": "Correlación de vulnerabilidades (CVE)",
                 "tool": "Base local + NVD API",
                 "objective": "Identificar CVEs asociados a productos y versiones detectados.",
@@ -120,6 +177,7 @@ def _build_audit_steps(scan_data: dict) -> list[dict]:
 
         steps.append(
             {
+                "key": "exploit",
                 "title": "Explotación — FTP anónimo",
                 "tool": "ftplib (ReconTool) / FTP anonymous",
                 "objective": (
@@ -141,6 +199,7 @@ def _build_audit_steps(scan_data: dict) -> list[dict]:
         )
         steps.append(
             {
+                "key": "ia",
                 "title": "Análisis de vectores (IA / playbook)",
                 "tool": f"{ai.get('provider', 'N/A')} / {ai.get('model', 'N/A')}",
                 "objective": "Priorizar vectores de ataque y siguientes comprobaciones.",
@@ -273,7 +332,8 @@ def generate_audit_report(
     # --- 3. Desarrollo ---
     doc.add_heading("3. Desarrollo de la Auditoría", level=1)
     doc.add_paragraph(
-        "Detalle paso a paso del proceso automatizado y manual equivalente ejecutado por ReconTool."
+        "Detalle paso a paso con evidencias gráficas. Coloque capturas en "
+        f"data/screenshots/{_safe_target(target)}/ (ver documentación bovrecon)."
     )
 
     audit_steps = _build_audit_steps(scan_data)
@@ -285,6 +345,8 @@ def generate_audit_report(
             step["tool"],
             step["objective"],
             step["findings"],
+            target,
+            step.get("key", f"step{idx}"),
         )
 
     # Pipeline log
@@ -360,6 +422,7 @@ def generate_audit_report(
             run_flag.font.name = "Consolas"
             run_flag.font.size = Pt(12)
             run_flag.font.color.rgb = RGBColor(0x00, 0x66, 0x00)
+        _add_evidence_block(doc, target, 99, "flag", "Flag obtenida — captura final")
     else:
         doc.add_paragraph("No se capturó flag en esta ejecución.")
 

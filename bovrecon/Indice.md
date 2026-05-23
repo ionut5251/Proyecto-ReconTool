@@ -22,6 +22,7 @@
 |------|----------------|
 | Visión y objetivos | [[01-Proyecto/Vision-y-objetivos]] |
 | Roadmap y fases | [[01-Proyecto/Roadmap]] |
+| **Estado entrega v1** | [[01-Proyecto/Entrega-v1-estado]] |
 | Arquitectura | [[02-Arquitectura/Arquitectura-general]] |
 | Flujo scan → CVE → IA | [[02-Arquitectura/Flujo-de-datos]] |
 | Árbol de archivos | [[02-Arquitectura/Mapa-del-repositorio]] |
@@ -48,7 +49,9 @@
 | Consulta NVD | ✅ Con rate-limit |
 | IA vectores | ✅ OpenAI / Ollama vía `.env` |
 | **FTP anónimo + flag (Fawn)** | ✅ `ftp_probe.py` |
-| **Informe Word (.docx)** | ✅ Tras capturar flag |
+| **Informe Word (.docx)** | ✅ Tras capturar flag (+ capturas manuales) |
+| Comando `./recontool` | ✅ Arranque automático Kali |
+| Entrega v1 documentada | ✅ [[01-Proyecto/Entrega-v1-estado]] |
 | Frontend estilo Shodan | ✅ `index.html` + `results.html` |
 | Trazabilidad pasos IA | ⏳ Planificado — [[07-Futuro/Auditoria-y-trazabilidad-IA]] |
 | Informe Word + capturas | ⏳ Planificado — [[07-Futuro/Informe-Word-auditoria]] |

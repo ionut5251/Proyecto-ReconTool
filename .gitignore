@@ -1,4 +1,6 @@
 code/backend/venv/
+code/backend/data/screenshots/*
+!code/backend/data/screenshots/.gitkeep
 __pycache__/
 *.pyc
 .env
