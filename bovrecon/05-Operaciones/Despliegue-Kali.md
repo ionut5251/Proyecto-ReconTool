@@ -74,10 +74,36 @@ ping -c 2 10.10.x.x
 
 ### 6. Arrancar ReconTool
 
+> **IMPORTANTE:** `sudo python run.py` **NO funciona** — `sudo` cambia al Python del sistema
+> (sin `python-nmap`, `fastapi`, etc.) y verás `ModuleNotFoundError: No module named 'nmap'`.
+
+**Opción A — script (recomendado):**
+
+```bash
+cd code/backend
+chmod +x start-kali.sh
+./start-kali.sh
+```
+
+**Opción B — manual:**
+
 ```bash
 cd code/backend
 source venv/bin/activate
-sudo ./venv/bin/python run.py
+pip install -r requirements.txt    # confirma deps en el venv
+sudo ./venv/bin/python run.py      # usa SIEMPRE el Python del venv
+```
+
+**Sin sudo** (solo si cambias nmap a `-sT` en config; no recomendado para HTB):
+
+```bash
+./venv/bin/python run.py
+```
+
+Comprobar que el venv tiene las libs:
+
+```bash
+./venv/bin/python -c "import nmap; print('OK', nmap.__file__)"
 ```
 
 Abrir en navegador de Kali: `http://127.0.0.1:8000`

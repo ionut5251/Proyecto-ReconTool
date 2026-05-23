@@ -19,6 +19,8 @@ cp .env.example .env
 python run.py
 ```
 
+**Kali (con nmap privilegiado):** `./start-kali.sh` — ver [bovrecon/05-Operaciones/Despliegue-Kali.md](bovrecon/05-Operaciones/Despliegue-Kali.md).
+
 Abrir http://127.0.0.1:8000
 
 ## Repositorio

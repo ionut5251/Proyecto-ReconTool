@@ -60,14 +60,16 @@ Probar con `scanme.nmap.org` (servicio público de prueba de nmap).
 Ver guía completa: [[Despliegue-Kali]].
 
 ```bash
-sudo apt install nmap python3-venv
+sudo apt install -y nmap python3-venv python3-pip
 cd ~/Proyecto-ReconTool/code/backend
 python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+./venv/bin/pip install -r requirements.txt
 cp .env.example .env
-sudo $(which python) run.py   # o capabilities para nmap
+chmod +x start-kali.sh
+./start-kali.sh
 ```
+
+> No uses `sudo python run.py` — ver [[Despliegue-Kali#6. Arrancar ReconTool]].
 
 ---
 
@@ -83,7 +85,8 @@ curl http://127.0.0.1:8000/api/
 
 | Problema | Solución |
 |----------|----------|
-| `ModuleNotFoundError: httpx` | `pip install -r requirements.txt` en el venv correcto |
+| `ModuleNotFoundError: No module named 'nmap'` | Usar `sudo ./venv/bin/python run.py` o `./start-kali.sh`, **no** `sudo python run.py`. Luego `pip install -r requirements.txt` dentro del venv |
+| `ModuleNotFoundError: httpx` | `./venv/bin/pip install -r requirements.txt` |
 | Scan vacío / error permisos | Ejecutar como root/admin o cambiar a `-sT` en config (menos sigiloso) |
 | IA deshabilitada | Configurar `.env` — [[../03-Backend/Configuracion-env]] |
 | NVD muy lento | Obtener `NVD_API_KEY` o `enrich_cve: false` en API |
