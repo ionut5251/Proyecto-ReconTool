@@ -17,7 +17,8 @@ Relacionado: [[Roadmap]] · [[../Indice|Índice]] · [[../07-Futuro/Informe-Word
 | FTP anónimo automático (HTB Fawn) | ✅ Probado en Kali |
 | Captura flag en web | ✅ |
 | Informe Word (.docx) | ✅ |
-| Evidencias gráficas en informe | 🔄 Manual (carpeta screenshots) |
+| Informe HTML (Kali / Firefox) | ✅ |
+| Evidencias gráficas automáticas | ✅ | [[../03-Backend/Servicio-capturas-automaticas]] |
 | Comando único arranque `./recontool` | ✅ |
 | Documentación bóveda Obsidian | ✅ |
 

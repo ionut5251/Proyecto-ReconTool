@@ -30,6 +30,7 @@
 | API REST | [[03-Backend/API]] |
 | FTP auto-exploit (Fawn) | [[03-Backend/Servicio-FTP-exploit]] |
 | Informe Word | [[03-Backend/Servicio-informe-Word]] |
+| Capturas automáticas | [[03-Backend/Servicio-capturas-automaticas]] |
 | Frontend UI | [[04-Frontend/Frontend-overview]] |
 | Instalar y ejecutar | [[05-Operaciones/Instalacion-y-ejecucion]] |
 | Probar en Kali | [[05-Operaciones/Despliegue-Kali]] |
@@ -49,7 +50,9 @@
 | Consulta NVD | ✅ Con rate-limit |
 | IA vectores | ✅ OpenAI / Ollama vía `.env` |
 | **FTP anónimo + flag (Fawn)** | ✅ `ftp_probe.py` |
-| **Informe Word (.docx)** | ✅ Tras capturar flag (+ capturas manuales) |
+| **Informe Word (.docx)** | ✅ |
+| **Informe HTML (Kali)** | ✅ Firefox |
+| **Capturas auto por paso** | ✅ Pillow |
 | Comando `./recontool` | ✅ Arranque automático Kali |
 | Entrega v1 documentada | ✅ [[01-Proyecto/Entrega-v1-estado]] |
 | Frontend estilo Shodan | ✅ `index.html` + `results.html` |

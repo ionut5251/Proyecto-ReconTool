@@ -1,58 +1,49 @@
 # Informe Word de auditoría
 
-#recontool #informe #word
+#recontool #informe #word #html
 
-Relacionado: [[../03-Backend/Servicio-informe-Word]] · [[Auditoria-y-trazabilidad-IA]]
-
----
-
-## Estado: ✅ implementado (v1) · 🔄 capturas manuales
-
-Al capturar una **flag**, la UI permite **Descargar informe Word (.docx)**.
+Relacionado: [[../03-Backend/Servicio-informe-Word]] · [[../03-Backend/Servicio-capturas-automaticas]]
 
 ---
 
-## Evidencias gráficas (importante para el máster y clientes)
+## Estado: ✅ implementado
 
-El informe del ejemplo académico incluye **fotos en cada paso**. ReconTool v1 soporta esto así:
+Dos formatos de descarga tras capturar flag:
 
-### Carpeta de capturas
+| Botón | Formato | Uso |
+|-------|---------|-----|
+| Informe Word | `.docx` | Entregar en Windows / Word |
+| Informe Linux | `.html` | Abrir en **Firefox** en Kali — sin transferir archivos |
 
+---
+
+## Capturas automáticas ✅
+
+Ya **no** hace falta copiar PNG a mano. ReconTool genera evidencias por paso al completar el scan (ver [[../03-Backend/Servicio-capturas-automaticas]]).
+
+Se incrustan en Word y HTML.
+
+---
+
+## Abrir HTML en Kali
+
+```bash
+firefox ~/Downloads/informe_pentest_10.x.x.x_YYYYMMDD.html
 ```
-code/backend/data/screenshots/<IP>/
-├── 01_nmap.png      ← pantallazo escaneo / tabla puertos
-├── 02_cve.png       ← CVEs (opcional si aplica)
-├── 03_exploit.png   ← FTP / pasos explotación
-├── 04_ia.png        ← panel IA (opcional)
-└── 99_flag.png      ← flag en pantalla
-```
 
-La IP usa formato sanitizado (ej. `10.10.10.123` → carpeta `10.10.10.123`).
-
-### Flujo recomendado
-
-1. Ejecutar scan y hacer capturas durante el proceso (web, terminal, FTP).
-2. Guardar PNG en la carpeta anterior **antes** de pulsar descargar informe.
-3. Regenerar informe → las imágenes se incrustan con pie "Figura N".
-4. Si falta una imagen → placeholder naranja indicando qué archivo añadir.
-
-### Segunda entrega (planificado)
-
-- Captura automática de la UI al completar cada fase del pipeline
-- Subida drag-and-drop desde la web
-- Menos texto, más figuras (informe orientado a cliente)
+O doble clic desde el gestor de archivos. Imágenes incluidas en el mismo archivo.
 
 ---
 
-## Contenido textual del informe
+## Segunda entrega (reservado)
 
-Portada, índice, resumen, metodología, pasos, CVEs, recomendaciones, flag.
-
-Ver [[../03-Backend/Servicio-informe-Word]].
+- Capturas reales de pantalla UI (Playwright)
+- Export PDF nativo
+- Subida drag-and-drop de fotos extra
 
 ---
 
 ## Enlaces
 
 - [[../01-Proyecto/Entrega-v1-estado]]
-- [[Auditoria-y-trazabilidad-IA]]
+- [[../03-Backend/API#POST /api/report]]

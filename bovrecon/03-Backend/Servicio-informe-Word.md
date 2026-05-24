@@ -1,28 +1,19 @@
-# Servicio informe Word
+# Servicio informe Word / HTML
 
-#recontool #backend #informe #word
+#recontool #backend #informe #word #html
 
-Relacionado: [[API]] · [[../07-Futuro/Informe-Word-auditoria]] · [[Pipeline-de-escaneo]]
-
----
-
-## Archivo
-
-`code/backend/app/services/report_generator.py`
+Relacionado: [[API]] · [[Servicio-capturas-automaticas]] · [[../07-Futuro/Informe-Word-auditoria]]
 
 ---
 
-## Dependencia
+## Archivos
 
-```
-python-docx>=1.1.0
-```
-
-Instalar en Kali:
-
-```bash
-./venv/bin/pip install -r requirements.txt
-```
+| Archivo | Formato |
+|---------|---------|
+| `report_generator.py` | Word `.docx` |
+| `report_html.py` | HTML (Linux/Kali) |
+| `report_content.py` | Contenido compartido |
+| `step_capture.py` | Capturas PNG automáticas |
 
 ---
 
@@ -30,59 +21,43 @@ Instalar en Kali:
 
 ### `POST /api/report`
 
-Genera y descarga un `.docx`.
+| Campo | Valores |
+|-------|---------|
+| `scan_data` | JSON del scan |
+| `format` | `docx` (default) o `html` |
+| `auditor` | Opcional |
 
-**Requisito:** `scan_data.exploitation.flag_captured === true`
-
-**Body:**
-
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `scan_data` | object | JSON completo del scan |
-| `auditor` | string | Opcional; default `REPORT_AUDITOR_NAME` en `.env` |
-
-**Respuesta:** archivo Word (`Content-Disposition: attachment`)
-
-**Error JSON:** si no hay flag o falla la generación.
+**Requisito:** flag capturada.
 
 ---
 
-## Datos usados del scan
+## Informe HTML (Kali)
 
-| Sección informe | Origen en JSON |
-|-----------------|----------------|
-| Puertos | `results[]` |
-| CVEs | `cve_findings[]` |
-| Pasos FTP | `exploitation.attempts[].steps` |
-| Flag | `exploitation.flags[]` |
-| Pipeline | `pipeline_log[]` |
-| IA | `ai_analysis.analysis` |
+- Un solo archivo `.html`
+- Estilo oscuro tipo informe pentest
+- Imágenes embebidas en base64 (capturas automáticas)
+- Abrir con Firefox — ideal para lab sin Windows
+
+---
+
+## Informe Word
+
+Misma estructura que el ejemplo académico + figuras por paso.
+
+---
+
+## Capturas
+
+Generadas automáticamente — [[Servicio-capturas-automaticas]].
 
 ---
 
 ## Frontend
 
-Botón en panel **Flag capturada** → `POST /api/report` → descarga automática.
+Dos botones en panel **Flag capturada**:
 
-Script: `code/frontend/js/results.js` → `downloadAuditReport()`.
-
----
-
-## Capturas / evidencias gráficas
-
-Carpeta: `code/backend/data/screenshots/<IP>/`
-
-| Archivo | Paso |
-|---------|------|
-| `01_nmap.png` | Escaneo / puertos |
-| `02_cve.png` | CVEs |
-| `03_exploit.png` | Explotación FTP |
-| `04_ia.png` | Panel IA |
-| `99_flag.png` | Flag final |
-
-Si existe el PNG, se incrusta en el Word. Si no, placeholder indicando qué añadir.
-
-**v2 (segunda entrega):** capturas automáticas — [[../07-Futuro/Informe-Word-auditoria]].
+- `Informe Word (.docx)`
+- `Informe Linux (HTML)`
 
 ---
 

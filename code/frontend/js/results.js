@@ -124,20 +124,25 @@ function renderExploitation(exploitation) {
       )
       .join("");
     show(flagPanel);
-    if (reportBtn) {
-      reportBtn.disabled = false;
-      reportBtn.textContent = "Descargar informe Word (.docx)";
-    }
+    const wordBtn = document.getElementById("download-report-btn");
+    const htmlBtn = document.getElementById("download-report-html-btn");
+    if (wordBtn) wordBtn.disabled = false;
+    if (htmlBtn) htmlBtn.disabled = false;
   }
 }
 
-async function downloadAuditReport() {
+async function downloadAuditReport(format) {
   if (!window.lastScanData?.exploitation?.flag_captured) {
     alert("El informe solo está disponible cuando se ha capturado una flag.");
     return;
   }
 
-  const btn = document.getElementById("download-report-btn");
+  const isHtml = format === "html";
+  const btn = document.getElementById(
+    isHtml ? "download-report-html-btn" : "download-report-btn"
+  );
+  const defaultLabel = isHtml ? "Informe Linux (HTML)" : "Informe Word (.docx)";
+
   if (btn) {
     btn.disabled = true;
     btn.textContent = "Generando informe…";
@@ -147,7 +152,10 @@ async function downloadAuditReport() {
     const response = await fetch(`${API_BASE}/api/report`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scan_data: window.lastScanData }),
+      body: JSON.stringify({
+        scan_data: window.lastScanData,
+        format: isHtml ? "html" : "docx",
+      }),
     });
 
     const contentType = response.headers.get("Content-Type") || "";
@@ -159,7 +167,8 @@ async function downloadAuditReport() {
     const blob = await response.blob();
     const disposition = response.headers.get("Content-Disposition") || "";
     const match = disposition.match(/filename=\"?([^\";]+)\"?/);
-    const filename = match ? match[1] : "informe_pentest.docx";
+    const fallback = isHtml ? "informe_pentest.html" : "informe_pentest.docx";
+    const filename = match ? match[1] : fallback;
 
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -168,13 +177,17 @@ async function downloadAuditReport() {
     document.body.appendChild(link);
     link.click();
     link.remove();
-    URL.revokeObjectURL(url);
+
+    if (isHtml) {
+      window.open(url, "_blank");
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
   } catch (err) {
     alert(err.message || "Error al descargar el informe");
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.textContent = "Descargar informe Word (.docx)";
+      btn.textContent = defaultLabel;
     }
   }
 }
@@ -373,9 +386,10 @@ function init() {
   });
 
   const reportBtn = document.getElementById("download-report-btn");
-  if (reportBtn) {
-    reportBtn.addEventListener("click", downloadAuditReport);
-  }
+  if (reportBtn) reportBtn.addEventListener("click", () => downloadAuditReport("docx"));
+
+  const reportHtmlBtn = document.getElementById("download-report-html-btn");
+  if (reportHtmlBtn) reportHtmlBtn.addEventListener("click", () => downloadAuditReport("html"));
 
   runScan(target)
     .then(renderResults)

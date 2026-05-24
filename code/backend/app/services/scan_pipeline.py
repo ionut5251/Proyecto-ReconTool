@@ -6,6 +6,7 @@ from app.services.cve_lookup import build_search_keyword, lookup_cves
 from app.services.ftp_probe import run_exploitation_checks
 from app.services.nmap_scanner import scan_target
 from app.services.playbook_advisor import build_playbook_analysis, merge_ai_with_playbook
+from app.services.step_capture import capture_all_evidence
 from app.services.vuln_db import load_vulnerabilities_db
 
 
@@ -151,4 +152,13 @@ def run_full_scan(
         _log_phase(pipeline_log, "ai", "skipped", "IA desactivada en petición")
 
     scan_data["pipeline_log"] = pipeline_log
+
+    if scan_data.get("exploitation", {}).get("flag_captured"):
+        try:
+            capture_all_evidence(scan_data)
+            _log_phase(pipeline_log, "evidence", "ok", "Capturas automáticas generadas")
+        except Exception as exc:
+            _log_phase(pipeline_log, "evidence", "error", str(exc))
+            scan_data.setdefault("warnings", []).append(f"Capturas: {exc}")
+
     return scan_data

@@ -18,3 +18,7 @@ class AnalyzeRequest(BaseModel):
 class ReportRequest(BaseModel):
     scan_data: dict = Field(..., description="Resultado completo del escaneo")
     auditor: str = Field("", description="Nombre del auditor (opcional)")
+    format: str = Field(
+        "docx",
+        description="Formato: docx (Word) o html (Linux/Kali — abrir en Firefox)",
+    )

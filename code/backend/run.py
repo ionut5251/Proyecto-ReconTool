@@ -10,6 +10,7 @@ def _check_dependencies() -> None:
         ("dotenv", "python-dotenv"),
         ("pydantic", "pydantic"),
         ("docx", "python-docx"),
+        ("PIL", "Pillow"),
     ]
     missing = []
     for module, package in required:

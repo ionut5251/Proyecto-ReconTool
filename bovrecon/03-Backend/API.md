@@ -73,20 +73,24 @@ Implementación: `enrich_scan_with_cves()` en `scan_pipeline.py`.
 
 ### `POST /api/report`
 
-Genera informe de auditoría Word (.docx). **Solo si hay flag capturada.**
+Genera informe de auditoría. **Solo si hay flag capturada.**
 
 **Body:**
 
 ```json
 {
   "scan_data": { "...": "resultado completo de /api/scan" },
+  "format": "docx",
   "auditor": "Tu Nombre (opcional)"
 }
 ```
 
-**Respuesta:** archivo `informe_pentest_{IP}_{fecha}.docx`
+| `format` | Salida |
+|----------|--------|
+| `docx` | Word (default) |
+| `html` | HTML para Kali/Firefox — imágenes embebidas |
 
-Ver [[Servicio-informe-Word]].
+Ver [[Servicio-informe-Word]] y [[Servicio-capturas-automaticas]].
 
 ---
 

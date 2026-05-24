@@ -6,7 +6,7 @@
       {
         "id": "45e8f216ef969bb7",
         "type": "tabs",
-        "dimension": 42.17948717948718,
+        "dimension": 62.98292902066487,
         "children": [
           {
             "id": "58b42e7cf17d53a3",
@@ -14,12 +14,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Bienvenido.md",
+                "file": "Indice.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Bienvenido"
+              "title": "Indice"
             }
           }
         ]
@@ -27,7 +27,7 @@
       {
         "id": "87f85c63914e1f7d",
         "type": "tabs",
-        "dimension": 57.820512820512825,
+        "dimension": 37.01707097933513,
         "children": [
           {
             "id": "c30ea8d9851105af",
@@ -203,6 +203,7 @@
   },
   "active": "58b42e7cf17d53a3",
   "lastOpenFiles": [
+    "Bienvenido.md",
     "07-Futuro/Informe-Word-auditoria.md",
     "07-Futuro/Auditoria-y-trazabilidad-IA.md",
     "07-Futuro",
@@ -233,7 +234,6 @@
     "01-Proyecto/Roadmap.md",
     "01-Proyecto/Vision-y-objetivos.md",
     "01-Proyecto",
-    "Indice.md",
-    "Bienvenido.md"
+    "Indice.md"
   ]
 }
