@@ -22,8 +22,10 @@ python run.py
 **Kali (un comando):**
 
 ```bash
-chmod +x recontool && ./recontool
+cd ~/Proyecto-ReconTool && git pull && chmod +x recontool && ./recontool
 ```
+
+O sin chmod: `bash recontool`
 
 Instala dependencias y arranca el servidor. Ver [bovrecon/05-Operaciones/Despliegue-Kali.md](bovrecon/05-Operaciones/Despliegue-Kali.md).
 

@@ -63,7 +63,7 @@ Ver guía completa: [[Despliegue-Kali]].
 cd ~/Proyecto-ReconTool
 git pull
 chmod +x recontool
-./recontool
+bash recontool
 ```
 
 El script `recontool` crea venv si falta, ejecuta `pip install -r requirements.txt` y arranca el servidor.
