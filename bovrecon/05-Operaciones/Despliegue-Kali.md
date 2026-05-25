@@ -74,14 +74,18 @@ ping -c 2 10.10.x.x
 
 ### 6. Arrancar ReconTool
 
-> **Un solo comando (recomendado):** desde la raíz del repo:
+> Si ves `permission denied: ./recontool` → falta permiso de ejecución. Usa `bash recontool` (abajo).
+
+**Comando recomendado (copia tal cual):**
 
 ```bash
 cd ~/Proyecto-ReconTool
 git pull
 chmod +x recontool
-./recontool
+bash recontool
 ```
+
+(`bash recontool` funciona aunque falle `./recontool` sin chmod.)
 
 Esto hace automáticamente:
 
@@ -90,16 +94,24 @@ Esto hace automáticamente:
 3. Comprobar/instalar `nmap`  
 4. Arrancar con `sudo ./venv/bin/python run.py`  
 
-> **IMPORTANTE:** `sudo python run.py` **NO funciona** — usa el Python del sistema sin dependencias.
+> **NO uses** `sudo ./recontool` ni `sudo python run.py` — el script ya gestiona sudo por dentro.
 
-**Alias opcional en el sistema:**
+**Errores frecuentes:**
+
+| Error | Qué hacer |
+|-------|-----------|
+| `permission denied: ./recontool` | `chmod +x recontool` o `bash recontool` |
+| `sudo: ./recontool: command not found` | `cd ~/Proyecto-ReconTool` + `git pull` + `bash recontool` |
+| `ModuleNotFoundError: nmap` | Usar `bash recontool`, no `sudo python run.py` |
+
+**Manual (alternativa):**
 
 ```bash
-sudo ln -sf ~/Proyecto-ReconTool/recontool /usr/local/bin/recontool
-recontool   # desde cualquier directorio
+cd ~/Proyecto-ReconTool/code/backend
+python3 -m venv venv
+./venv/bin/pip install -r requirements.txt
+sudo ./venv/bin/python run.py
 ```
-
-**Alternativa:** `code/backend/start-kali.sh` (redirige a `./recontool`).
 
 Abrir en navegador de Kali: `http://127.0.0.1:8000`
 
