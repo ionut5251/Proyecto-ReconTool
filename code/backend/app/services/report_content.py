@@ -24,6 +24,18 @@ def risk_level(scan_data: dict) -> str:
     return "BAJO"
 
 
+def target_display(scan_data: dict) -> str:
+    """IP del objetivo y URLs web detectadas (sin nombres de máquina/lab)."""
+    target = str(scan_data.get("target", "N/A"))
+    parts = [target]
+    osint = scan_data.get("osint") or {}
+    for w in osint.get("web") or []:
+        url = w.get("url")
+        if url and w.get("status"):
+            parts.append(url)
+    return " · ".join(parts)
+
+
 def ports_summary(scan_data: dict) -> str:
     parts = []
     for row in scan_data.get("results", []):
@@ -41,25 +53,32 @@ def ports_summary(scan_data: dict) -> str:
 
 
 def executive_summary(scan_data: dict) -> str:
-    target = scan_data.get("target", "N/A")
+    target_label = target_display(scan_data)
     ports = ports_summary(scan_data)
     flag_ok = scan_data.get("exploitation", {}).get("flag_captured")
     flags = scan_data.get("exploitation", {}).get("flags") or []
 
     intro = (
-        f"La presente auditoría de seguridad ofensiva fue realizada sobre el sistema "
-        f"{target}, con el objetivo de identificar servicios expuestos, vulnerabilidades "
-        f"asociadas y vectores de explotación en un entorno de laboratorio autorizado (HTB/práctica académica). "
+        f"La presente auditoría de seguridad ofensiva fue realizada sobre el objetivo "
+        f"{target_label}, con el fin de identificar servicios expuestos, vulnerabilidades "
+        f"asociadas y vectores de explotación en un entorno autorizado. "
         f"Servicios analizados: {ports}."
     )
 
     if flag_ok and flags:
         flag_content = flags[0].get("content", "")
+        vector = (scan_data.get("exploitation") or {}).get("vector_used", "")
+        if vector == "telnet_root_blank":
+            vector_desc = "Telnet con usuario root y contraseña vacía"
+        elif vector == "ftp_anonymous":
+            vector_desc = "FTP con autenticación anónima"
+        else:
+            vector_desc = "explotación automática según servicios detectados"
         return (
             f"{intro}\n\n"
-            f"Como resultado, se logró comprometer el objetivo obteniendo la flag de usuario: "
-            f"{flag_content}. El vector principal fue FTP con autenticación anónima y lectura "
-            f"del archivo {flags[0].get('filename', 'flag.txt')}."
+            f"Como resultado, se logró comprometer el objetivo obteniendo la flag: "
+            f"{flag_content}. Vector principal: {vector_desc} "
+            f"({flags[0].get('filename', 'flag.txt')})."
         )
 
     return (
@@ -70,7 +89,7 @@ def executive_summary(scan_data: dict) -> str:
 
 
 def build_audit_steps(scan_data: dict) -> list[dict]:
-    target = scan_data.get("target", "N/A")
+    target = target_display(scan_data)
     steps: list[dict] = []
 
     ports_text = ports_summary(scan_data)
@@ -86,6 +105,28 @@ def build_audit_steps(scan_data: dict) -> list[dict]:
             "findings": f"Puertos/servicios: {ports_text}. OS estimado: {os_text}.",
         }
     )
+
+    osint = scan_data.get("osint") or {}
+    if osint:
+        osint_lines = []
+        if osint.get("hostname"):
+            osint_lines.append(f"Reverse DNS: {osint['hostname']}")
+        for w in osint.get("web") or []:
+            line = f"{w.get('url')}: HTTP {w.get('status') or '?'}"
+            if w.get("title"):
+                line += f" — {w['title']}"
+            osint_lines.append(line)
+        for note in osint.get("notes") or []:
+            osint_lines.append(note)
+        steps.append(
+            {
+                "key": "osint",
+                "title": "OSINT pasivo",
+                "tool": "reverse DNS + HTTP probe",
+                "objective": "Superficie web y notas de recon sin explotación activa.",
+                "findings": "\n".join(osint_lines) or "Sin datos OSINT adicionales.",
+            }
+        )
 
     cve_lines = []
     for row in scan_data.get("results", []):
@@ -108,6 +149,16 @@ def build_audit_steps(scan_data: dict) -> list[dict]:
 
     exploitation = scan_data.get("exploitation") or {}
     for attempt in exploitation.get("attempts", []):
+        module = attempt.get("module", "exploit")
+        if module == "telnet_root_blank":
+            title = "Explotación — Telnet (root / sin contraseña)"
+            tool = "ReconTool telnet_probe / telnet"
+            objective = "Acceso Telnet con usuario root y contraseña vacía."
+        else:
+            title = "Explotación — FTP anónimo"
+            tool = "ReconTool ftp_probe / FTP anonymous"
+            objective = "FTP anónimo y lectura de flag.txt."
+
         step_details = "\n".join(
             f"[{s.get('action')}] {s.get('detail')}" for s in attempt.get("steps", [])
         )
@@ -124,12 +175,9 @@ def build_audit_steps(scan_data: dict) -> list[dict]:
         steps.append(
             {
                 "key": "exploit",
-                "title": "Explotación — FTP anónimo",
-                "tool": "ftplib (ReconTool) / FTP anonymous",
-                "objective": (
-                    "Comprobar acceso anónimo al servicio FTP, listar archivos "
-                    "y descargar flag.txt si existe (vector HTB Fawn)."
-                ),
+                "title": title,
+                "tool": tool,
+                "objective": objective,
                 "findings": findings or attempt.get("error", "Sin resultados"),
             }
         )
@@ -142,11 +190,13 @@ def build_audit_steps(scan_data: dict) -> list[dict]:
             f"- {v.get('title')} ({v.get('priority')}): {v.get('rationale', '')[:200]}"
             for v in vectors[:5]
         )
+        provider = ai.get("provider", "playbook")
+        tool_label = provider if provider != "openai" else f"{provider} / {ai.get('model', '')}"
         steps.append(
             {
                 "key": "ia",
                 "title": "Análisis de vectores (IA / playbook)",
-                "tool": f"{ai.get('provider', 'N/A')} / {ai.get('model', 'N/A')}",
+                "tool": tool_label,
                 "objective": "Priorizar vectores de ataque y siguientes comprobaciones.",
                 "findings": f"{analysis.get('summary')}\n{vector_text}".strip(),
             }

@@ -13,13 +13,16 @@ from app.core.config import (
     OPENAI_MODEL,
 )
 
-SYSTEM_PROMPT = """Eres un asistente de red team para laboratorios autorizados (HTB, prácticas universitarias, VMs propias).
+SYSTEM_PROMPT = """Eres un asistente de red team para auditorías autorizadas (prácticas universitarias, VMs propias, scope acordado).
 Analiza resultados de nmap, CVEs y bloque exploitation si existe.
 Sugiere vectores de ataque priorizados y comprobaciones manuales seguras.
 No inventes puertos ni servicios que no estén en los datos.
+No menciones nombres comerciales de plataformas de labs ni máquinas concretas en el texto.
 
-Si solo hay puerto 21/FTP abierto (como HTB Fawn): prioriza login anonymous, ls, get flag.txt.
-Si exploitation.flag_captured es true, resume cómo se obtuvo la flag.
+Si solo hay puerto 21/FTP abierto: prioriza login anonymous, ls, get flag.txt.
+Si solo hay puerto 23/Telnet abierto: prioriza telnet root con contraseña vacía, ls, cat flag.txt.
+Usa attack_plan del scan_data si existe; no contradigas el vector principal detectado.
+Si exploitation.flag_captured es true, resume cómo se obtuvo la flag (solo IP/servicios, sin nombres de box).
 
 Responde ÚNICAMENTE con JSON válido (sin markdown) con esta forma:
 {

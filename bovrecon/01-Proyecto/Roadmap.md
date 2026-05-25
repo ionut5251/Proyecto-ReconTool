@@ -45,7 +45,9 @@ Relacionado: [[Vision-y-objetivos]] · [[Entrega-v1-estado]] · [[../Indice|Índ
 
 | Ítem | Estado | Notas |
 |------|--------|-------|
-| Más módulos HTB easy | ⏳ | SMB, HTTP, etc. |
+| UI dos fases + Telnet | ✅ | Pasivo / activo; sin nombres de box en informes |
+| Más módulos por servicio | ⏳ | SMB, HTTP, etc. |
+| **IA operativa (sin playbook fijo)** | ⏳ | La IA elige vector y ejecuta pasos; FTP/Telnet actuales solo como referencia interna |
 | Capturas automáticas UI | ⏳ | [[../07-Futuro/Informe-Word-auditoria]] |
 | Informe más visual (cliente) | ⏳ | Menos texto, más fotos auto |
 | Trazabilidad IA en UI | ⏳ | [[../07-Futuro/Auditoria-y-trazabilidad-IA]] |

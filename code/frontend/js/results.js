@@ -12,11 +12,11 @@ function severityClass(severity) {
 }
 
 function show(el) {
-  el.classList.remove("hidden");
+  if (el) el.classList.remove("hidden");
 }
 
 function hide(el) {
-  el.classList.add("hidden");
+  if (el) el.classList.add("hidden");
 }
 
 function escapeHtml(value) {
@@ -57,11 +57,135 @@ function renderCveCell(row) {
     .join("");
 }
 
+function formatAiMeta(ai, prefix = "Fuente") {
+  if (!ai) return "";
+  const provider = ai.provider || "playbook";
+  if (provider === "playbook" || provider === "ollama") {
+    return `${prefix}: ${provider}`;
+  }
+  if (ai.model) {
+    return `${prefix}: ${provider} · Modelo: ${ai.model}`;
+  }
+  return `${prefix}: ${provider}`;
+}
+
+function renderAiVectors(containerId, analysis) {
+  const vectorsBox = document.getElementById(containerId);
+  if (!vectorsBox) return;
+  vectorsBox.innerHTML = "";
+
+  (analysis?.vectors || []).forEach((vector) => {
+    const card = document.createElement("article");
+    card.className = "vector-card";
+    const checks = (vector.suggested_checks || [])
+      .map((c) => `<li><code>${escapeHtml(c)}</code></li>`)
+      .join("");
+    const ports = (vector.related_ports || []).join(", ") || "—";
+    card.innerHTML = `
+      <header>
+        <h3>${escapeHtml(vector.title || "Vector")}</h3>
+        <span class="badge ${severityClass(vector.priority)}">${escapeHtml(vector.priority || "medium")}</span>
+      </header>
+      <p>${escapeHtml(vector.rationale || "")}</p>
+      <p class="muted small">Puertos relacionados: ${escapeHtml(ports)}</p>
+      <ul>${checks}</ul>
+    `;
+    vectorsBox.appendChild(card);
+  });
+}
+
+function renderAiPanel(ai, options = {}) {
+  const panelId = options.panelId || "ai-panel";
+  const summaryId = options.summaryId || "ai-summary";
+  const vectorsId = options.vectorsId || "ai-vectors";
+  const metaId = options.metaId || "ai-meta";
+
+  const panel = document.getElementById(panelId);
+  hide(panel);
+  if (!ai?.analysis) return;
+
+  document.getElementById(summaryId).textContent = ai.analysis.summary || "Sin resumen.";
+  renderAiVectors(vectorsId, ai.analysis);
+  document.getElementById(metaId).textContent = formatAiMeta(ai);
+  show(panel);
+}
+
+function renderOsint(osint) {
+  const panel = document.getElementById("osint-panel");
+  const content = document.getElementById("osint-content");
+  hide(panel);
+  if (!osint) return;
+
+  const parts = [];
+  if (osint.hostname) {
+    parts.push(`<p><strong>Hostname (reverse DNS):</strong> ${escapeHtml(osint.hostname)}</p>`);
+  }
+  if (osint.web?.length) {
+    parts.push("<p><strong>Servicios web detectados:</strong></p><ul>");
+    osint.web.forEach((w) => {
+      const title = w.title ? ` — ${escapeHtml(w.title)}` : "";
+      const err = w.error ? ` <span class="muted">(${escapeHtml(w.error)})</span>` : "";
+      parts.push(
+        `<li><code>${escapeHtml(w.url)}</code> → HTTP ${w.status ?? "?"}${title}${err}</li>`
+      );
+    });
+    parts.push("</ul>");
+  }
+  if (osint.subdomains?.length) {
+    parts.push("<p><strong>Hosts / subdominios:</strong></p><ul>");
+    osint.subdomains.forEach((s) => parts.push(`<li><code>${escapeHtml(s)}</code></li>`));
+    parts.push("</ul>");
+  }
+  if (osint.notes?.length) {
+    parts.push('<p class="muted small">' + osint.notes.map(escapeHtml).join("<br>") + "</p>");
+  }
+
+  if (!parts.length) return;
+  content.innerHTML = parts.join("");
+  show(panel);
+}
+
+function renderAttackPlan(plan) {
+  const panel = document.getElementById("attack-plan-panel");
+  const msg = document.getElementById("attack-plan-msg");
+  const list = document.getElementById("attack-plan-list");
+  const cta = document.getElementById("attack-cta-panel");
+  const btn = document.getElementById("proceed-attack-btn");
+
+  hide(panel);
+  hide(cta);
+
+  if (!plan) return;
+
+  msg.textContent = plan.message || "";
+  list.innerHTML = "";
+
+  (plan.vectors || []).forEach((v) => {
+    const li = document.createElement("li");
+    li.textContent = `${v.title} — ${v.summary || ""}`;
+    if (plan.primary?.id === v.id) {
+      li.className = "plan-primary";
+    }
+    list.appendChild(li);
+  });
+
+  show(panel);
+
+  if (plan.primary?.id) {
+    btn.disabled = false;
+    btn.textContent = `Proceder con ataque: ${plan.primary.title}`;
+    show(cta);
+  } else {
+    btn.disabled = true;
+    btn.textContent = "Sin vector automático para este objetivo";
+    show(cta);
+  }
+}
+
 function renderPipelineLog(log) {
   const panel = document.getElementById("pipeline-panel");
   const list = document.getElementById("pipeline-list");
   hide(panel);
-
   if (!log?.length) return;
 
   list.innerHTML = "";
@@ -75,12 +199,19 @@ function renderPipelineLog(log) {
   show(panel);
 }
 
+function exploitBlockTitle(attempt) {
+  const mod = attempt.module || "";
+  if (mod === "telnet_root_blank") {
+    return `Telnet ${attempt.host}:${attempt.port}`;
+  }
+  return `FTP ${attempt.host}:${attempt.port}`;
+}
+
 function renderExploitation(exploitation) {
   const panel = document.getElementById("exploit-panel");
   const flagPanel = document.getElementById("flag-panel");
   const flagContent = document.getElementById("flag-content");
   const stepsBox = document.getElementById("exploit-steps");
-  const reportBtn = document.getElementById("download-report-btn");
 
   hide(panel);
   hide(flagPanel);
@@ -91,8 +222,8 @@ function renderExploitation(exploitation) {
   exploitation.attempts.forEach((attempt) => {
     const block = document.createElement("div");
     block.className = "exploit-block";
-    const title = document.createElement("h3");
-    title.textContent = `FTP ${attempt.host}:${attempt.port}`;
+    const title = document.createElement("h4");
+    title.textContent = exploitBlockTitle(attempt);
     block.appendChild(title);
 
     const ul = document.createElement("ul");
@@ -192,66 +323,9 @@ async function downloadAuditReport(format) {
   }
 }
 
-function renderAiAnalysis(ai) {
-  const aiPanel = document.getElementById("ai-panel");
-  const disabledPanel = document.getElementById("ai-disabled-panel");
-
-  hide(aiPanel);
-  hide(disabledPanel);
-
-  if (!ai) return;
-
-  if (!ai.enabled && !ai.analysis) {
-    document.getElementById("ai-disabled-msg").textContent =
-      ai.message || "IA no disponible. Revisa el archivo .env del backend.";
-    show(disabledPanel);
-    return;
-  }
-
-  const analysis = ai.analysis || {};
-  document.getElementById("ai-summary").textContent = analysis.summary || "Sin resumen.";
-
-  const vectorsBox = document.getElementById("ai-vectors");
-  vectorsBox.innerHTML = "";
-
-  (analysis.vectors || []).forEach((vector) => {
-    const card = document.createElement("article");
-    card.className = "vector-card";
-    const checks = (vector.suggested_checks || [])
-      .map((c) => `<li><code>${escapeHtml(c)}</code></li>`)
-      .join("");
-    const ports = (vector.related_ports || []).join(", ") || "—";
-
-    card.innerHTML = `
-      <header>
-        <h3>${escapeHtml(vector.title || "Vector")}</h3>
-        <span class="badge ${severityClass(vector.priority)}">${escapeHtml(vector.priority || "medium")}</span>
-      </header>
-      <p>${escapeHtml(vector.rationale || "")}</p>
-      <p class="muted small">Puertos relacionados: ${escapeHtml(ports)}</p>
-      <ul>${checks}</ul>
-    `;
-    vectorsBox.appendChild(card);
-  });
-
-  const stepsList = document.getElementById("ai-next-steps");
-  stepsList.innerHTML = "";
-  (analysis.next_steps || []).forEach((step) => {
-    const li = document.createElement("li");
-    li.textContent = step;
-    stepsList.appendChild(li);
-  });
-
-  const provider = ai.provider || "?";
-  const model = ai.model || "?";
-  document.getElementById("ai-meta").textContent = `Fuente: ${provider} · Modelo: ${model}`;
-  show(aiPanel);
-}
-
-async function runScan(target) {
+async function runPassiveScan(target) {
   const status = document.getElementById("scan-status");
-  status.textContent =
-    "Escaneando (nmap → CVE → FTP/flag → IA). Puede tardar varios minutos…";
+  status.textContent = "Recon pasivo (nmap → CVE → OSINT)…";
   status.className = "status scanning";
 
   const response = await fetch(`${API_BASE}/api/scan`, {
@@ -260,8 +334,8 @@ async function runScan(target) {
     body: JSON.stringify({
       target,
       enrich_cve: true,
-      ai_analyze: true,
-      auto_exploit: true,
+      osint: true,
+      full_pipeline: false,
     }),
   });
 
@@ -272,54 +346,42 @@ async function runScan(target) {
   return response.json();
 }
 
-function renderResults(data) {
-  window.lastScanData = data;
-
+async function runActiveAttack(scanData) {
   const status = document.getElementById("scan-status");
-  const errorPanel = document.getElementById("error-panel");
-  const warnPanel = document.getElementById("warn-panel");
+  status.textContent = "Ataque activo en curso…";
+  status.className = "status scanning";
+
+  const btn = document.getElementById("proceed-attack-btn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Atacando…";
+  }
+
+  const response = await fetch(`${API_BASE}/api/attack`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      scan_data: scanData,
+      ai_analyze: true,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+function renderPortsTable(data) {
   const osPanel = document.getElementById("os-panel");
   const portsPanel = document.getElementById("ports-panel");
   const emptyPanel = document.getElementById("empty-panel");
+  const hasResults = (data.results || []).length > 0;
 
-  hide(errorPanel);
-  hide(warnPanel);
   hide(osPanel);
   hide(portsPanel);
   hide(emptyPanel);
-
-  const hasResults = (data.results || []).length > 0;
-
-  if (data.error && !hasResults) {
-    errorPanel.textContent = data.error;
-    show(errorPanel);
-    status.textContent = "Error en el escaneo";
-    status.className = "status";
-    renderPipelineLog(data.pipeline_log);
-    return;
-  }
-
-  if (data.error && hasResults) {
-    warnPanel.textContent = `Aviso parcial: ${data.error}`;
-    show(warnPanel);
-  }
-
-  if (data.warnings?.length) {
-    warnPanel.textContent = data.warnings.join(" | ");
-    show(warnPanel);
-  }
-
-  const cveCount = (data.results || []).reduce(
-    (acc, row) => acc + (row.cve_findings?.length || 0),
-    0
-  );
-
-  const flagText = data.exploitation?.flag_captured ? " · FLAG OK" : "";
-  status.textContent = `Completado — ${data.results?.length ?? 0} puerto(s), ${cveCount} CVE(s)${flagText}`;
-  status.className = "status done";
-
-  renderPipelineLog(data.pipeline_log);
-  renderExploitation(data.exploitation);
 
   if (data.os?.length) {
     const osList = document.getElementById("os-list");
@@ -334,17 +396,14 @@ function renderResults(data) {
 
   if (!hasResults) {
     show(emptyPanel);
-    renderAiAnalysis(data.ai_analysis);
     return;
   }
 
   const tbody = document.getElementById("ports-body");
   tbody.innerHTML = "";
-
   data.results.forEach((row) => {
     const tr = document.createElement("tr");
     const productVersion = [row.product, row.version].filter(Boolean).join(" ") || "—";
-
     tr.innerHTML = `
       <td>${row.port}</td>
       <td>${row.state}</td>
@@ -355,9 +414,84 @@ function renderResults(data) {
     `;
     tbody.appendChild(tr);
   });
-
   show(portsPanel);
-  renderAiAnalysis(data.ai_analysis);
+}
+
+function renderPassiveResults(data) {
+  window.lastScanData = data;
+  window.passiveScanData = data;
+
+  const status = document.getElementById("scan-status");
+  const errorPanel = document.getElementById("error-panel");
+  const warnPanel = document.getElementById("warn-panel");
+
+  hide(errorPanel);
+  hide(warnPanel);
+
+  const hasResults = (data.results || []).length > 0;
+
+  if (data.error && !hasResults) {
+    errorPanel.textContent = data.error;
+    show(errorPanel);
+    status.textContent = "Error en recon pasivo";
+    status.className = "status";
+    return;
+  }
+
+  if (data.error && hasResults) {
+    warnPanel.textContent = `Aviso parcial: ${data.error}`;
+    show(warnPanel);
+  }
+  if (data.warnings?.length) {
+    warnPanel.textContent = data.warnings.join(" | ");
+    show(warnPanel);
+  }
+
+  const cveCount = (data.results || []).reduce(
+    (acc, row) => acc + (row.cve_findings?.length || 0),
+    0
+  );
+
+  const webUrls = (data.osint?.web || [])
+    .filter((w) => w.url && w.status)
+    .map((w) => w.url);
+  const urlHint = webUrls.length ? ` · ${webUrls.join(", ")}` : "";
+  status.textContent = `Recon pasivo completado — ${data.results?.length ?? 0} puerto(s), ${cveCount} CVE(s)${urlHint}`;
+  status.className = "status done";
+
+  renderOsint(data.osint);
+  renderPortsTable(data);
+  renderAttackPlan(data.attack_plan);
+
+  renderAiPanel(data.ai_analysis, {
+    panelId: "passive-ai-panel",
+    summaryId: "passive-ai-summary",
+    vectorsId: "passive-ai-vectors",
+    metaId: "passive-ai-meta",
+  });
+}
+
+function renderActiveResults(data) {
+  window.lastScanData = data;
+
+  show(document.getElementById("phase-active"));
+
+  const status = document.getElementById("scan-status");
+  const flagText = data.exploitation?.flag_captured ? " · FLAG capturada" : "";
+  status.textContent = `Ataque activo completado${flagText}`;
+  status.className = data.exploitation?.flag_captured ? "status done flag-ok" : "status done";
+
+  renderPipelineLog(data.pipeline_log);
+  renderExploitation(data.exploitation);
+  renderAiPanel(data.ai_analysis);
+
+  const btn = document.getElementById("proceed-attack-btn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = data.exploitation?.flag_captured
+      ? "Ataque completado — flag obtenida"
+      : "Ataque ejecutado";
+  }
 }
 
 function init() {
@@ -386,13 +520,35 @@ function init() {
   });
 
   const reportBtn = document.getElementById("download-report-btn");
-  if (reportBtn) reportBtn.addEventListener("click", () => downloadAuditReport("docx"));
+  if (reportBtn) {
+    reportBtn.disabled = true;
+    reportBtn.addEventListener("click", () => downloadAuditReport("docx"));
+  }
 
   const reportHtmlBtn = document.getElementById("download-report-html-btn");
-  if (reportHtmlBtn) reportHtmlBtn.addEventListener("click", () => downloadAuditReport("html"));
+  if (reportHtmlBtn) {
+    reportHtmlBtn.disabled = true;
+    reportHtmlBtn.addEventListener("click", () => downloadAuditReport("html"));
+  }
 
-  runScan(target)
-    .then(renderResults)
+  const attackBtn = document.getElementById("proceed-attack-btn");
+  attackBtn.addEventListener("click", async () => {
+    if (!window.passiveScanData) return;
+    try {
+      const result = await runActiveAttack(window.passiveScanData);
+      if (result.error && !result.exploitation) {
+        throw new Error(result.error);
+      }
+      renderActiveResults(result);
+    } catch (err) {
+      alert(err.message || "Error en ataque activo");
+      attackBtn.disabled = false;
+      attackBtn.textContent = "Reintentar ataque activo";
+    }
+  });
+
+  runPassiveScan(target)
+    .then(renderPassiveResults)
     .catch((err) => {
       const errorPanel = document.getElementById("error-panel");
       errorPanel.textContent = err.message || "No se pudo contactar con la API";

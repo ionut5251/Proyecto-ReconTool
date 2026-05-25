@@ -10,87 +10,39 @@ Relacionado: [[Frontend-overview]] · [[../03-Backend/API]]
 
 **Ruta:** `/`
 
-Elementos:
-
-- Logo **ReconTool** (enlace a home).
-- Tagline académico.
-- Formulario `#search-form` con input `#target-input`.
-- Botón **Escanear**.
-- Aviso legal: solo objetivos autorizados.
-
-**Comportamiento** (`js/search.js`):
-
-```javascript
-// Al submit → /results.html?target={IP}
-```
+Formulario → `/results.html?target={IP}` (`js/search.js`).
 
 ---
 
-## Pantalla 2 — Resultados (`results.html`)
+## Pantalla 2 — Resultados en dos fases (`results.html`)
 
 **Ruta:** `/results.html?target={IP}`
 
-### Cabecera
+### Fase 1 — Recon pasivo (automático al cargar)
 
-- Logo + mini-búsqueda (`#mini-search`) para cambiar IP sin volver a home.
+- `POST /api/scan` (sin explotación)
+- Paneles: **OSINT**, **OS**, **puertos/CVEs**, **vector detectado**
+- Playbook: fuente `playbook` (sin nombres de máquina/lab en la UI)
+- Botón **Proceder con ataque activo**
 
-### Banner objetivo
+### Fase 2 — Ataque activo (al pulsar el botón)
 
-- `#target-title` — IP mostrada.
-- `#scan-status` — estados: preparando → escaneando → completado / error.
+- `POST /api/attack` con el JSON de la fase 1
+- Pipeline, pasos de explotación (FTP o Telnet según máquina)
+- **Flag capturada** + informes Word/HTML (solo si hay flag)
 
-### Paneles
+### Vectores por servicio (ejemplos de prueba)
 
-| ID | Contenido |
-|----|-----------|
-| `#error-panel` | Errores de API/nmap |
-| `#os-panel` | Lista OS detectado (nmap `osmatch`) |
-| `#ports-panel` | Tabla puertos y servicios |
-| `#empty-panel` | Sin puertos abiertos (`--open`) |
-| `#ai-panel` | Vectores sugeridos por IA |
-| `#ai-disabled-panel` | Mensaje si IA no configurada |
+| Puerto | Vector automático |
+|--------|-------------------|
+| 21 FTP | FTP anónimo → `flag.txt` |
+| 23 Telnet | root + contraseña vacía → `flag.txt` |
 
-### Tabla de puertos
-
-Columnas: Puerto, Estado, Servicio, Producto/versión, Info extra, **CVEs detectados**.
-
-Render de CVEs (`results.js`):
-
-- Usa `cve_findings[]` si existe.
-- Fallback a `vulnerability` única.
-- Badges por severidad (`critical`, `high`).
-
-### Panel IA
-
-Muestra:
-
-- `analysis.summary`
-- Tarjetas por cada `analysis.vectors[]` (título, prioridad, rationale, checks, puertos).
-- Lista `analysis.next_steps`
-- Meta: proveedor y modelo.
-
-Si `ai_analysis.enabled === false` → panel gris con mensaje de `.env`.
+En informes y resultados solo aparecen **IP** y **URL** (si hay HTTP), no nombres de máquinas de lab.
 
 ---
 
 ## Estados de carga
 
-Un solo request largo a `/api/scan`. El usuario ve:
-
-> *Escaneando con nmap, consultando NVD y generando vectores IA (puede tardar varios minutos)…*
-
-Mejora futura: progreso por fases (nmap / CVE / IA).
-
----
-
-## Accesibilidad y responsive
-
-- CSS con `@media (max-width: 640px)` para cabecera en móvil.
-- Sin dependencias externas (funciona offline excepto API).
-
----
-
-## Enlaces
-
-- [[Frontend-overview]]
-- [[../02-Arquitectura/Flujo-de-datos]]
+1. *Recon pasivo (nmap → CVE → OSINT)…*
+2. Tras el botón: *Ataque activo en curso…*

@@ -8,7 +8,10 @@
 </head>
 <body class="page-results">
   <header class="site-header">
-    <a href="/" class="logo">Recon<span>Tool</span></a>
+    <a href="/" class="brand">
+      <img src="/img/recontool-logo.png" alt="" class="brand-logo" width="48" height="48" />
+      <span class="logo"><span class="logo-recon">Recon</span><span class="logo-tool">Tool</span></span>
+    </a>
     <form id="mini-search" class="mini-search" autocomplete="off">
       <input id="mini-target" type="text" placeholder="Nueva IP..." required />
       <button type="submit">Buscar</button>
@@ -24,71 +27,98 @@
     <section id="error-panel" class="panel panel-error hidden"></section>
     <section id="warn-panel" class="panel panel-warn hidden"></section>
 
-    <section id="flag-panel" class="panel panel-success hidden">
-      <h2>Flag capturada</h2>
-      <div id="flag-content"></div>
-      <div class="flag-actions">
-        <button type="button" id="download-report-btn" class="btn-report">Informe Word (.docx)</button>
-        <button type="button" id="download-report-html-btn" class="btn-report btn-report-html">Informe Linux (HTML)</button>
-        <p class="muted small">
-          Las capturas de cada paso se generan automáticamente al completar el scan.
-          El HTML se abre en Firefox/Epiphany en Kali sin pasar por Windows.
-        </p>
-      </div>
+    <!-- FASE 1: PASIVO -->
+    <section id="phase-passive" class="phase-block">
+      <h2 class="phase-title">Fase 1 — Reconocimiento pasivo (OSINT)</h2>
+
+      <section id="osint-panel" class="panel hidden">
+        <h3>OSINT / superficie</h3>
+        <div id="osint-content"></div>
+      </section>
+
+      <section id="os-panel" class="panel hidden">
+        <h3>Sistema operativo</h3>
+        <ul id="os-list" class="os-list"></ul>
+      </section>
+
+      <section id="ports-panel" class="panel hidden">
+        <h3>Puertos y servicios</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Puerto</th>
+                <th>Estado</th>
+                <th>Servicio</th>
+                <th>Producto / versión</th>
+                <th>Info extra</th>
+                <th>CVEs</th>
+              </tr>
+            </thead>
+            <tbody id="ports-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="empty-panel" class="panel panel-muted hidden">
+        <p>No se encontraron puertos abiertos (<code>--open</code>).</p>
+      </section>
+
+      <section id="attack-plan-panel" class="panel panel-plan hidden">
+        <h3>Vector de ataque detectado</h3>
+        <p id="attack-plan-msg" class="plan-msg"></p>
+        <ul id="attack-plan-list" class="attack-plan-list"></ul>
+      </section>
+
+      <section id="passive-ai-panel" class="panel hidden">
+        <h3>Análisis (recon pasivo)</h3>
+        <p id="passive-ai-summary" class="ai-summary"></p>
+        <div id="passive-ai-vectors" class="ai-vectors"></div>
+        <p id="passive-ai-meta" class="ai-meta"></p>
+      </section>
+
+      <section id="attack-cta-panel" class="panel panel-cta hidden">
+        <h3>Fase 2 — Ataque activo</h3>
+        <p>Cuando el recon pasivo esté completo, lanza la explotación automática según el vector detectado (FTP, Telnet, etc.).</p>
+        <button type="button" id="proceed-attack-btn" class="btn-attack">Proceder con ataque activo</button>
+      </section>
     </section>
 
-    <section id="exploit-panel" class="panel hidden">
-      <h2>Explotación automática (pasos ejecutados)</h2>
-      <div id="exploit-steps"></div>
-    </section>
+    <!-- FASE 2: ACTIVO -->
+    <section id="phase-active" class="phase-block hidden">
+      <h2 class="phase-title">Fase 2 — Ataque activo</h2>
 
-    <section id="pipeline-panel" class="panel hidden">
-      <h2>Pipeline del escaneo</h2>
-      <ul id="pipeline-list" class="pipeline-list"></ul>
-    </section>
+      <section id="pipeline-panel" class="panel hidden">
+        <h3>Pipeline</h3>
+        <ul id="pipeline-list" class="pipeline-list"></ul>
+      </section>
 
-    <section id="os-panel" class="panel hidden">
-      <h2>Sistema operativo (detección nmap)</h2>
-      <ul id="os-list" class="os-list"></ul>
-    </section>
+      <section id="exploit-panel" class="panel hidden">
+        <h3>Pasos de explotación</h3>
+        <div id="exploit-steps"></div>
+      </section>
 
-    <section id="ports-panel" class="panel hidden">
-      <h2>Puertos y servicios abiertos</h2>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Puerto</th>
-              <th>Estado</th>
-              <th>Servicio</th>
-              <th>Producto / versión</th>
-              <th>Info extra</th>
-              <th>CVEs detectados</th>
-            </tr>
-          </thead>
-          <tbody id="ports-body"></tbody>
-        </table>
-      </div>
-    </section>
+      <section id="flag-panel" class="panel panel-success hidden">
+        <h3>Flag capturada</h3>
+        <div id="flag-content"></div>
+        <div class="flag-actions">
+          <button type="button" id="download-report-btn" class="btn-report">Informe Word (.docx)</button>
+          <button type="button" id="download-report-html-btn" class="btn-report btn-report-html">Informe Linux (HTML)</button>
+        </div>
+      </section>
 
-    <section id="empty-panel" class="panel panel-muted hidden">
-      <p>No se encontraron puertos abiertos con los filtros actuales (<code>--open</code>).</p>
-    </section>
-
-    <section id="ai-panel" class="panel hidden">
-      <h2>Vectores de ataque sugeridos (IA)</h2>
-      <p id="ai-summary" class="ai-summary"></p>
-      <div id="ai-vectors" class="ai-vectors"></div>
-      <h3 class="subheading">Próximos pasos</h3>
-      <ul id="ai-next-steps" class="ai-steps"></ul>
-      <p id="ai-meta" class="ai-meta"></p>
-    </section>
-
-    <section id="ai-disabled-panel" class="panel panel-muted hidden">
-      <h2>Análisis IA</h2>
-      <p id="ai-disabled-msg"></p>
+      <section id="ai-panel" class="panel hidden">
+        <h3>Análisis post-ataque</h3>
+        <p id="ai-summary" class="ai-summary"></p>
+        <div id="ai-vectors" class="ai-vectors"></div>
+        <p id="ai-meta" class="ai-meta"></p>
+      </section>
     </section>
   </main>
+
+  <footer class="site-footer">
+    <span>Master Ciberseguridad</span>
+  </footer>
 
   <script src="/js/config.js"></script>
   <script src="/js/results.js"></script>

@@ -2,7 +2,7 @@
 
 #recontool #backend #pipeline
 
-Relacionado: [[Servicio-nmap]] · [[Servicio-CVE-NVD]] · [[Servicio-IA]] · [[../02-Arquitectura/Flujo-de-datos]]
+Relacionado: [[Servicio-nmap]] · [[Servicio-CVE-NVD]] · [[Servicio-FTP-exploit]] · [[Servicio-Telnet-exploit]] · [[../02-Arquitectura/Flujo-de-datos]]
 
 ---
 
@@ -12,61 +12,63 @@ Relacionado: [[Servicio-nmap]] · [[Servicio-CVE-NVD]] · [[Servicio-IA]] · [[.
 
 ---
 
-## Funciones
+## Fase 1 — `run_passive_recon(target)`
 
-### `run_full_scan(target, enrich_cve=True, ai_analyze=True)`
+1. `scan_target(target)` — nmap
+2. `enrich_scan_with_cves(scan_data)` — CVE local + NVD
+3. `run_passive_osint(target, scan_data)` — reverse DNS, HTTP probe, notas
+4. `detect_attack_vectors(scan_data)` → `attack_plan` (FTP / Telnet / HTTP enum)
+5. `build_playbook_analysis()` — vectores sin modelo inventado
+6. `exploitation.pending = true` — sin atacar aún
 
-1. Llama `scan_target(target)` → datos nmap.
-2. Si hay `error` en respuesta, retorna sin más pasos.
-3. Si `enrich_cve`: `enrich_scan_with_cves(scan_data)`.
-4. Si `ai_analyze`: `suggest_attack_vectors(scan_data)` → clave `ai_analysis`.
-5. Si no IA: `ai_analysis = { enabled: false, message: "..." }`.
-
-Punto de entrada desde [[API#POST /api/scan]].
-
----
-
-### `enrich_scan_with_cves(scan_data)`
-
-Por cada fila en `results`:
-
-1. Construye keyword: `build_search_keyword(product, version, service)`.
-2. Busca match exacto en base local (`product + version`).
-3. Consulta NVD con `lookup_cves(keyword)`.
-4. Fusiona en `cve_findings` sin duplicar CVE IDs (`_merge_cve_findings`).
-5. Rellena `vulnerability` con el mejor hallazgo disponible.
+Entrada: `POST /api/scan` (default).
 
 ---
 
-## Orden de prioridad CVE
+## Fase 2 — `run_active_attack(scan_data)`
 
-1. Entrada **local** (`data/vulnerabilities.json`) — curada para labs.
-2. Resultados **NVD** por keyword.
-3. Si NVD falla, puede aparecer `{ "error": "...", "source": "nvd" }` en la lista.
+1. `run_exploitation_checks(target, scan_data)` — **solo** el vector principal
+2. IA opcional + merge con playbook
+3. Si flag: `capture_all_evidence()` — PNG por paso
+
+Entrada: `POST /api/attack`.
 
 ---
 
-## Modificar el pipeline
+## Router de vectores
 
-| Cambio | Archivo a editar |
-|--------|------------------|
-| Añadir paso post-nmap | `scan_pipeline.py` |
-| Cambiar orden CVE/IA | `run_full_scan()` |
-| Nuevo endpoint parcial | `app/api/routes.py` |
+`service_router.py`:
 
-Siempre actualizar [[../02-Arquitectura/Flujo-de-datos]] y [[../06-Reglas/Mantenimiento-documentacion]].
+| Puerto/servicio | ID | Lab |
+|-----------------|-----|-----|
+| 21 / ftp | `ftp_anonymous` | HTB Fawn |
+| 23 / telnet | `telnet_root_blank` | HTB Meow |
+| 80/443/… | `http_enum` | (futuro) |
+
+`exploit_runner.py` no ejecuta todos los módulos; elige uno según `attack_plan.primary`.
+
+---
+
+## Compatibilidad — `run_full_scan()`
+
+Pasivo + activo en una llamada (`full_pipeline: true` en API).
 
 ---
 
 ## Pseudocódigo
 
 ```
-function run_full_scan(target):
+function passive(target):
     data = nmap.scan(target)
-    if data.error: return data
-    if enrich_cve:
-        data = merge_local_and_nvd(data)
-    if ai_analyze:
-        data.ai_analysis = llm.analyze(data)
+    data = cve.enrich(data)
+    data.osint = osint.run(target, data)
+    data.attack_plan = router.detect(data)
+    data.ai_analysis = playbook.build(data)
     return data
+
+function active(scan_data):
+    scan_data.exploitation = exploit.run(scan_data)
+    scan_data.ai_analysis = ai.or_playbook(scan_data)
+    if flag: evidence.capture(scan_data)
+    return scan_data
 ```

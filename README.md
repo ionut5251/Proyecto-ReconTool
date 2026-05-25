@@ -31,6 +31,10 @@ Instala dependencias y arranca el servidor. Ver [bovrecon/05-Operaciones/Desplie
 
 Abrir http://127.0.0.1:8000
 
+Flujo UI: recon pasivo → botón **Proceder con ataque activo** → flag e informes (Word/HTML con logo).
+
+Branding: **Recon** (blanco) + **Tool** (verde matrix). Logo en `code/frontend/img/recontool-logo.png`.
+
 ## Repositorio
 
 https://github.com/ionut5251/Proyecto-ReconTool.git

@@ -12,12 +12,14 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt, RGBColor
 
 from app.core.config import REPORT_AUDITOR_NAME, SCREENSHOTS_DIR
+from app.services.branding import logo_path_str
 from app.services.report_content import (
     build_audit_steps,
     executive_summary,
     ports_summary,
     risk_level,
     safe_target,
+    target_display,
 )
 from app.services.step_capture import capture_all_evidence
 
@@ -94,7 +96,8 @@ def generate_audit_report(scan_data: dict, auditor: str | None = None) -> bytes:
     if not scan_data.get("evidence_screenshots"):
         capture_all_evidence(scan_data)
 
-    target = scan_data.get("target", "objetivo")
+    target_ip = scan_data.get("target", "objetivo")
+    target_label = target_display(scan_data)
     auditor = auditor or REPORT_AUDITOR_NAME
     now = datetime.now()
     date_str = now.strftime("%d / %m / %Y")
@@ -110,17 +113,32 @@ def generate_audit_report(scan_data: dict, auditor: str | None = None) -> bytes:
     p_conf.runs[0].font.size = Pt(9)
     p_conf.runs[0].font.color.rgb = RGBColor(0x99, 0x99, 0x99)
 
+    logo = logo_path_str()
+    if logo:
+        lp = doc.add_paragraph()
+        lp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        lp.add_run().add_picture(logo, width=Inches(2.2))
+
     t1 = doc.add_heading("INFORME TÉCNICO", level=0)
     t1.alignment = WD_ALIGN_PARAGRAPH.CENTER
     t2 = doc.add_heading("AUDITORÍA DE SEGURIDAD OFENSIVA", level=1)
     t2.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
+    brand = doc.add_paragraph()
+    brand.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r1 = brand.add_run("Recon")
+    r1.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+    r1.bold = True
+    r2 = brand.add_run("Tool")
+    r2.font.color.rgb = RGBColor(0x00, 0xCC, 0x44)
+    r2.bold = True
+
     doc.add_paragraph()
-    _add_label_value(doc, "Objetivo", target)
+    _add_label_value(doc, "Objetivo", target_label)
     _add_label_value(doc, "Puertos analizados", ports_summary(scan_data))
     _add_label_value(doc, "Fecha de auditoría", date_str)
     _add_label_value(doc, "Nivel de riesgo", risk)
-    _add_label_value(doc, "Clasificación", "CONFIDENCIAL — LABORATORIO AUTORIZADO")
+    _add_label_value(doc, "Clasificación", "CONFIDENCIAL — ENTORNO AUTORIZADO")
     _add_label_value(doc, "Auditor", auditor)
 
     doc.add_paragraph()
@@ -155,7 +173,7 @@ def generate_audit_report(scan_data: dict, auditor: str | None = None) -> bytes:
     doc.add_heading("2. Metodología y Alcance", level=1)
     doc.add_paragraph(
         "Metodología basada en PTES y OWASP: reconocimiento, enumeración, "
-        "correlación CVE y explotación controlada en lab."
+        "correlación CVE y explotación controlada en entorno autorizado."
     )
 
     doc.add_heading("3. Desarrollo de la Auditoría", level=1)
@@ -170,7 +188,7 @@ def generate_audit_report(scan_data: dict, auditor: str | None = None) -> bytes:
             step["tool"],
             step["objective"],
             step["findings"],
-            target,
+            target_ip,
             step.get("key", f"step{idx}"),
         )
 
@@ -208,18 +226,29 @@ def generate_audit_report(scan_data: dict, auditor: str | None = None) -> bytes:
             vid += 1
 
     if scan_data.get("exploitation", {}).get("flag_captured"):
+        vector = (scan_data.get("exploitation") or {}).get("vector_used", "")
+        if vector == "telnet_root_blank":
+            vuln_desc = "Telnet con credenciales por defecto — lectura de flag"
+        elif vector == "ftp_anonymous":
+            vuln_desc = "FTP anónimo — lectura de flag.txt"
+        else:
+            vuln_desc = "Servicio expuesto — compromiso y lectura de flag"
         r = vuln_table.add_row().cells
         r[0].text = f"V-{vid:02d}"
-        r[1].text = "FTP anónimo — lectura de flag.txt"
+        r[1].text = vuln_desc
         r[2].text = "CRÍTICO"
         r[3].text = "9.1"
 
     doc.add_heading("5. Recomendaciones", level=1)
-    for rec in [
-        "Corregir misconfiguración FTP / login anónimo.",
-        "No exponer archivos sensibles en servicios de transferencia.",
-        "Parchear servicios con CVEs detectados.",
-    ]:
+    recs = ["Parchear servicios con CVEs detectados.", "Revisar superficie de ataque expuesta."]
+    vector = (scan_data.get("exploitation") or {}).get("vector_used", "")
+    if vector == "telnet_root_blank":
+        recs.insert(0, "Deshabilitar Telnet o exigir autenticación fuerte; no usar root remoto.")
+    elif vector == "ftp_anonymous":
+        recs.insert(0, "Deshabilitar login anónimo en FTP y restringir permisos.")
+    else:
+        recs.insert(0, "Corregir la misconfiguración que permitió la lectura de la flag.")
+    for rec in recs:
         doc.add_paragraph(rec, style="List Bullet")
 
     doc.add_heading("6. Resultado — Flag obtenida", level=1)
@@ -232,7 +261,7 @@ def generate_audit_report(scan_data: dict, auditor: str | None = None) -> bytes:
             run_flag.font.name = "Consolas"
             run_flag.font.size = Pt(12)
             run_flag.font.color.rgb = RGBColor(0x00, 0x66, 0x00)
-        _add_evidence_block(doc, target, 99, "flag", "Flag capturada — evidencia final")
+        _add_evidence_block(doc, target_ip, 99, "flag", "Flag capturada — evidencia final")
     else:
         doc.add_paragraph("No se capturó flag en esta ejecución.")
 

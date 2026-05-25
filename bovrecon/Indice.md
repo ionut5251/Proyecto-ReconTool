@@ -29,6 +29,8 @@
 | Backend | [[03-Backend/Backend-overview]] |
 | API REST | [[03-Backend/API]] |
 | FTP auto-exploit (Fawn) | [[03-Backend/Servicio-FTP-exploit]] |
+| Telnet auto-exploit (Meow) | [[03-Backend/Servicio-Telnet-exploit]] |
+| Flujo pasivo / activo | [[03-Backend/Pipeline-de-escaneo]] |
 | Informe Word | [[03-Backend/Servicio-informe-Word]] |
 | Capturas automáticas | [[03-Backend/Servicio-capturas-automaticas]] |
 | Frontend UI | [[04-Frontend/Frontend-overview]] |
@@ -50,6 +52,8 @@
 | Consulta NVD | ✅ Con rate-limit |
 | IA vectores | ✅ OpenAI / Ollama vía `.env` |
 | **FTP anónimo + flag (Fawn)** | ✅ `ftp_probe.py` |
+| **Telnet root vacío + flag (Meow)** | ✅ `telnet_probe.py` |
+| **UI dos fases (OSINT → ataque)** | ✅ `results.html` + `/api/attack` |
 | **Informe Word (.docx)** | ✅ |
 | **Informe HTML (Kali)** | ✅ Firefox |
 | **Capturas auto por paso** | ✅ Pillow |

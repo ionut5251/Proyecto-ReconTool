@@ -4,8 +4,10 @@
   --border: #2a2a2a;
   --text: #e8e8e8;
   --muted: #888;
-  --accent: #d0021b;
-  --accent-hover: #ff1a35;
+  --recon: #ffffff;
+  --tool: #00ff41;
+  --accent: #00ff41;
+  --accent-hover: #33ff66;
   --ok: #3ddc84;
   --warn: #f5a623;
   --critical: #ff3b30;
@@ -42,14 +44,35 @@ a {
   background: #000;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+}
+
+.brand-logo {
+  height: 48px;
+  width: auto;
+  display: block;
+}
+
+.page-home .brand-logo {
+  height: 72px;
+}
+
 .logo {
   font-size: 1.4rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
 }
 
-.logo span {
-  color: var(--accent);
+.logo-recon {
+  color: var(--recon);
+}
+
+.logo-tool {
+  color: var(--tool);
 }
 
 .tagline {
@@ -471,6 +494,73 @@ td {
   margin-top: 1rem;
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+.phase-block {
+  margin-bottom: 2rem;
+}
+
+.phase-title {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.panel-plan .plan-msg {
+  margin-bottom: 0.75rem;
+}
+
+.attack-plan-list {
+  list-style: none;
+  padding: 0;
+}
+
+.attack-plan-list li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.attack-plan-list li.plan-primary {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.panel-cta {
+  border-color: var(--tool);
+  text-align: center;
+}
+
+.btn-attack {
+  margin-top: 1rem;
+  padding: 0.85rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-attack:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-attack:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.status.flag-ok {
+  color: var(--ok);
+}
+
+.exploit-block h4 {
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
 }
 
 @media (max-width: 640px) {

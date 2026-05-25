@@ -4,11 +4,17 @@ from pydantic import BaseModel, Field
 class ScanRequest(BaseModel):
     target: str = Field(..., min_length=1, description="IP o hostname a escanear")
     enrich_cve: bool = Field(True, description="Consultar CVEs en NVD y base local")
-    ai_analyze: bool = Field(True, description="Generar vectores de ataque con IA")
-    auto_exploit: bool = Field(
-        True,
-        description="Probar vectores automáticos (p. ej. FTP anónimo / flag.txt)",
+    osint: bool = Field(True, description="OSINT pasivo (web, reverse DNS)")
+    full_pipeline: bool = Field(
+        False,
+        description="Si true, ejecuta recon + ataque en una sola petición (legacy)",
     )
+    ai_analyze: bool = Field(False, description="Solo usado con full_pipeline")
+
+
+class AttackRequest(BaseModel):
+    scan_data: dict = Field(..., description="Resultado de /api/scan (fase pasiva)")
+    ai_analyze: bool = Field(True, description="Análisis IA tras el ataque")
 
 
 class AnalyzeRequest(BaseModel):
@@ -18,7 +24,4 @@ class AnalyzeRequest(BaseModel):
 class ReportRequest(BaseModel):
     scan_data: dict = Field(..., description="Resultado completo del escaneo")
     auditor: str = Field("", description="Nombre del auditor (opcional)")
-    format: str = Field(
-        "docx",
-        description="Formato: docx (Word) o html (Linux/Kali — abrir en Firefox)",
-    )
+    format: str = Field("docx", description="docx o html")

@@ -6,11 +6,16 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 from app.core.config import REPORT_AUDITOR_NAME
-from app.models.schemas import AnalyzeRequest, ReportRequest, ScanRequest
+from app.models.schemas import AnalyzeRequest, AttackRequest, ReportRequest, ScanRequest
 from app.services.ai_advisor import suggest_attack_vectors
 from app.services.report_generator import generate_audit_report
 from app.services.report_html import generate_audit_report_html
-from app.services.scan_pipeline import enrich_scan_with_cves, run_full_scan
+from app.services.scan_pipeline import (
+    enrich_scan_with_cves,
+    run_active_attack,
+    run_full_scan,
+    run_passive_recon,
+)
 
 router = APIRouter()
 
@@ -20,28 +25,47 @@ def home():
     return {
         "message": "ReconTool API running",
         "features": [
+            "passive_recon",
+            "active_attack",
             "nmap_scan",
             "nvd_cve_lookup",
-            "ai_attack_vectors",
-            "auto_exploit_ftp",
+            "osint_passive",
+            "attack_vector_detection",
+            "ftp_exploit",
+            "telnet_exploit",
             "audit_report_docx",
             "audit_report_html",
-            "auto_step_screenshots",
         ],
     }
 
 
 @router.post("/scan")
 def scan_endpoint(data: ScanRequest):
+    """Fase 1: recon pasivo (nmap, CVE, OSINT, plan de ataque). Sin explotación."""
     try:
-        return run_full_scan(
+        if data.full_pipeline:
+            return run_full_scan(
+                data.target,
+                enrich_cve=data.enrich_cve,
+                ai_analyze=data.ai_analyze,
+                auto_exploit=True,
+            )
+        return run_passive_recon(
             data.target,
             enrich_cve=data.enrich_cve,
-            ai_analyze=data.ai_analyze,
-            auto_exploit=data.auto_exploit,
+            osint=data.osint,
         )
     except Exception as exc:
-        return {"target": data.target, "error": str(exc), "pipeline_log": []}
+        return {"target": data.target, "error": str(exc), "pipeline_log": [], "phase": "passive"}
+
+
+@router.post("/attack")
+def attack_endpoint(data: AttackRequest):
+    """Fase 2: ataque activo según vector detectado (FTP, Telnet, etc.)."""
+    try:
+        return run_active_attack(data.scan_data, ai_analyze=data.ai_analyze)
+    except Exception as exc:
+        return {"error": str(exc)}
 
 
 @router.post("/analyze")
@@ -65,9 +89,7 @@ def report_endpoint(data: ReportRequest):
     try:
         scan_data = data.scan_data
         if not scan_data.get("exploitation", {}).get("flag_captured"):
-            return {
-                "error": "Informe disponible solo cuando se ha capturado una flag.",
-            }
+            return {"error": "Informe disponible solo cuando se ha capturado una flag."}
 
         auditor = data.auditor.strip() or REPORT_AUDITOR_NAME
         target = scan_data.get("target", "objetivo")

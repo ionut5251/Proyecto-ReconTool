@@ -31,7 +31,7 @@ Health check.
 
 ### `POST /api/scan`
 
-Escaneo completo (nmap + CVE + IA opcional).
+**Fase 1 — recon pasivo** (por defecto): nmap + CVE + OSINT + plan de ataque. **No explota.**
 
 **Body (JSON):**
 
@@ -39,19 +39,41 @@ Escaneo completo (nmap + CVE + IA opcional).
 |-------|------|---------|-------------|
 | `target` | string | *requerido* | IP o hostname |
 | `enrich_cve` | bool | `true` | Consultar NVD + base local |
-| `ai_analyze` | bool | `true` | Llamar al LLM |
+| `osint` | bool | `true` | Reverse DNS, probe HTTP, notas |
+| `full_pipeline` | bool | `false` | Si `true`, ejecuta también ataque (legacy) |
 
 **Ejemplo curl:**
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/scan \
   -H "Content-Type: application/json" \
-  -d "{\"target\": \"scanme.nmap.org\", \"enrich_cve\": true, \"ai_analyze\": true}"
+  -d "{\"target\": \"10.129.8.152\", \"enrich_cve\": true, \"osint\": true}"
 ```
 
-**Errores:** Devuelve `{ "error": "..." }` en excepciones (nmap no instalado, permisos, target inválido).
+Respuesta incluye: `phase: "passive"`, `attack_plan`, `osint`, `exploitation.pending: true`.
 
-**Tiempo:** Puede ser **varios minutos** (nmap + NVD throttling + IA).
+---
+
+### `POST /api/attack`
+
+**Fase 2 — ataque activo** según `attack_plan` (FTP Fawn, Telnet Meow, etc.).
+
+**Body:**
+
+```json
+{
+  "scan_data": { "... resultado de /api/scan ..." },
+  "ai_analyze": true
+}
+```
+
+Devuelve `phase: "active"`, `exploitation`, capturas si hay flag.
+
+---
+
+### Pipeline legacy
+
+`POST /api/scan` con `"full_pipeline": true` ejecuta pasivo + activo en una sola petición (comportamiento anterior).
 
 ---
 

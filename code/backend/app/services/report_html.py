@@ -15,7 +15,9 @@ from app.services.report_content import (
     ports_summary,
     risk_level,
     safe_target,
+    target_display,
 )
+from app.services.branding import logo_base64
 from app.services.step_capture import capture_all_evidence
 
 
@@ -52,7 +54,8 @@ def generate_audit_report_html(scan_data: dict, auditor: str | None = None) -> s
     if not scan_data.get("evidence_screenshots"):
         capture_all_evidence(scan_data)
 
-    target = scan_data.get("target", "objetivo")
+    target_ip = scan_data.get("target", "objetivo")
+    target_label = target_display(scan_data)
     auditor = auditor or REPORT_AUDITOR_NAME
     now = datetime.now()
     date_str = now.strftime("%d / %m / %Y")
@@ -70,7 +73,7 @@ def generate_audit_report_html(scan_data: dict, auditor: str | None = None) -> s
           <p><strong>Objetivo:</strong> {html.escape(step['objective'])}</p>
           <p><strong>Hallazgos:</strong></p>
           <pre>{html.escape(step['findings'])}</pre>
-          {_img_tag(target, idx, key, step['title'])}
+          {_img_tag(target_ip, idx, key, step['title'])}
         </section>
         """
 
@@ -87,28 +90,45 @@ def generate_audit_report_html(scan_data: dict, auditor: str | None = None) -> s
         flags_html += f"<p><strong>{html.escape(f.get('filename', ''))}</strong></p>"
         flags_html += f'<pre class="flag">{html.escape(f.get("content", ""))}</pre>'
     if flags:
-        flags_html += _img_tag(target, 99, "flag", "Flag capturada — evidencia final")
+        flags_html += _img_tag(target_ip, 99, "flag", "Flag capturada — evidencia final")
 
     recs = [
-        "Deshabilitar login anónimo en FTP o restringir permisos.",
-        "No almacenar flags ni credenciales en directorios accesibles.",
+        "No almacenar credenciales o artefactos sensibles en servicios accesibles.",
         "Actualizar servicios y monitorizar CVEs.",
     ]
+    vector = (scan_data.get("exploitation") or {}).get("vector_used", "")
     if scan_data.get("exploitation", {}).get("flag_captured"):
-        recs.insert(0, "URGENTE: Corregir misconfiguración FTP que permitió leer flag.txt.")
+        if vector == "telnet_root_blank":
+            recs.insert(0, "URGENTE: Corregir acceso Telnet (root sin contraseña).")
+        elif vector == "ftp_anonymous":
+            recs.insert(0, "URGENTE: Corregir FTP anónimo que permitió leer flag.txt.")
+        else:
+            recs.insert(0, "URGENTE: Corregir la misconfiguración que permitió leer la flag.")
 
     recs_html = "".join(f"<li>{html.escape(r)}</li>" for r in recs)
+
+    logo_b64 = logo_base64()
+    logo_html = ""
+    if logo_b64:
+        logo_html = (
+            f'<img class="report-logo" src="data:image/png;base64,{logo_b64}" '
+            f'alt="ReconTool" />'
+        )
 
     return f"""<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Informe Pentest — {html.escape(target)}</title>
+  <title>Informe Pentest — {html.escape(target_label)}</title>
   <style>
     body {{ font-family: Calibri, 'Segoe UI', sans-serif; background: #111; color: #eee; margin: 0; padding: 2rem; line-height: 1.5; }}
-    .cover {{ text-align: center; border-bottom: 2px solid #d0021b; padding-bottom: 2rem; margin-bottom: 2rem; }}
-    h1 {{ color: #d0021b; }}
-    h2 {{ color: #ccc; border-left: 4px solid #d0021b; padding-left: 0.75rem; }}
+    .cover {{ text-align: center; border-bottom: 2px solid #00ff41; padding-bottom: 2rem; margin-bottom: 2rem; }}
+    .report-logo {{ max-width: 220px; height: auto; margin-bottom: 1rem; }}
+    .brand-name {{ font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; }}
+    .brand-name .recon {{ color: #f0f0f0; }}
+    .brand-name .tool {{ color: #00ff41; }}
+    h1 {{ color: #00ff41; }}
+    h2 {{ color: #ccc; border-left: 4px solid #00ff41; padding-left: 0.75rem; }}
     .meta {{ display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; max-width: 720px; margin: 2rem auto; text-align: left; }}
     .meta div {{ background: #1a1a1a; padding: 1rem; border-radius: 4px; }}
     .step {{ background: #1a1a1a; padding: 1.25rem; margin: 1.5rem 0; border-radius: 6px; }}
@@ -124,11 +144,13 @@ def generate_audit_report_html(scan_data: dict, auditor: str | None = None) -> s
 </head>
 <body>
   <div class="cover">
+    {logo_html}
+    <p class="brand-name"><span class="recon">Recon</span><span class="tool">Tool</span></p>
     <p style="color:#888;">CONFIDENCIAL · USO RESTRINGIDO</p>
     <h1>INFORME TÉCNICO</h1>
     <h2 style="border:none;padding:0;">AUDITORÍA DE SEGURIDAD OFENSIVA</h2>
     <div class="meta">
-      <div><strong>Objetivo</strong><br>{html.escape(target)}</div>
+      <div><strong>Objetivo</strong><br>{html.escape(target_label)}</div>
       <div><strong>Fecha</strong><br>{html.escape(date_str)}</div>
       <div><strong>Puertos</strong><br>{html.escape(ports_summary(scan_data))}</div>
       <div><strong>Riesgo</strong><br>{html.escape(risk)}</div>

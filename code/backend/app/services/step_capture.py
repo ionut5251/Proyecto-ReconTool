@@ -63,7 +63,7 @@ def render_step_screenshot(
     img = Image.new("RGB", (WIDTH, max(height, 200)), (12, 12, 12))
     draw = ImageDraw.Draw(img)
 
-    draw.rectangle((0, 0, WIDTH, HEADER_H), fill=(208, 2, 27))
+    draw.rectangle((0, 0, WIDTH, HEADER_H), fill=(0, 140, 50))
     draw.text((PADDING, 14), f"ReconTool — Paso {step_num}: {title}", fill=(255, 255, 255), font=font_title)
     draw.text((PADDING, HEADER_H - 22), f"Target: {target}", fill=(255, 200, 200), font=font_sm)
 

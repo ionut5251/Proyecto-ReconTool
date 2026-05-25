@@ -9,7 +9,8 @@ Relacionado: [[Pantallas-UI]] · [[../03-Backend/API]] · [[../02-Arquitectura/A
 ## Tecnología
 
 - **HTML5** estático (sin framework JS).
-- **CSS** custom en `css/styles.css` (tema oscuro, acento rojo tipo Shodan).
+- **CSS** custom en `css/styles.css` (tema oscuro, marca **Recon** blanco + **Tool** verde matrix `#00ff41`).
+- Logo: `img/recontool-logo.png` (también en informes Word/HTML).
 - **JavaScript** vanilla en `js/`.
 
 No hay build step (npm/webpack). Edición directa de archivos.
@@ -44,8 +45,9 @@ La API vive en `/api/*` (no colisiona con archivos estáticos nombrados).
 
 1. Usuario escribe IP en home.
 2. Redirect a `results.html?target=IP`.
-3. `results.js` hace `POST /api/scan` automáticamente al cargar.
-4. Muestra OS, puertos, CVEs y vectores IA.
+3. `results.js` hace `POST /api/scan` (pasivo) al cargar.
+4. Usuario pulsa **Proceder con ataque activo** → `POST /api/attack`.
+5. Muestra OS, puertos, CVEs, flag e informes.
 
 Ver [[Pantallas-UI]].
 
