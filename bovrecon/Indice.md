@@ -23,6 +23,7 @@
 | Visión y objetivos | [[01-Proyecto/Vision-y-objetivos]] |
 | Roadmap y fases | [[01-Proyecto/Roadmap]] |
 | **Estado entrega v1** | [[01-Proyecto/Entrega-v1-estado]] |
+| **Informe Práctica 1 (Word)** | [[01-Proyecto/Entrega-practica1-informe]] |
 | Arquitectura | [[02-Arquitectura/Arquitectura-general]] |
 | Flujo scan → CVE → IA | [[02-Arquitectura/Flujo-de-datos]] |
 | Árbol de archivos | [[02-Arquitectura/Mapa-del-repositorio]] |
