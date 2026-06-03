@@ -102,6 +102,8 @@ def generate_audit_report_html(scan_data: dict, auditor: str | None = None) -> s
             recs.insert(0, "URGENTE: Corregir acceso Telnet (root sin contraseña).")
         elif vector == "ftp_anonymous":
             recs.insert(0, "URGENTE: Corregir FTP anónimo que permitió leer flag.txt.")
+        elif vector == "smb_anonymous":
+            recs.insert(0, "URGENTE: Corregir shares SMB accesibles sin autenticación.")
         else:
             recs.insert(0, "URGENTE: Corregir la misconfiguración que permitió leer la flag.")
 
@@ -122,13 +124,13 @@ def generate_audit_report_html(scan_data: dict, auditor: str | None = None) -> s
   <title>Informe Pentest — {html.escape(target_label)}</title>
   <style>
     body {{ font-family: Calibri, 'Segoe UI', sans-serif; background: #111; color: #eee; margin: 0; padding: 2rem; line-height: 1.5; }}
-    .cover {{ text-align: center; border-bottom: 2px solid #00ff41; padding-bottom: 2rem; margin-bottom: 2rem; }}
+    .cover {{ text-align: center; border-bottom: 2px solid #3d8f62; padding-bottom: 2rem; margin-bottom: 2rem; }}
     .report-logo {{ max-width: 220px; height: auto; margin-bottom: 1rem; }}
     .brand-name {{ font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; }}
     .brand-name .recon {{ color: #f0f0f0; }}
-    .brand-name .tool {{ color: #00ff41; }}
-    h1 {{ color: #00ff41; }}
-    h2 {{ color: #ccc; border-left: 4px solid #00ff41; padding-left: 0.75rem; }}
+    .brand-name .tool {{ color: #3d8f62; }}
+    h1 {{ color: #3d8f62; }}
+    h2 {{ color: #ccc; border-left: 4px solid #3d8f62; padding-left: 0.75rem; }}
     .meta {{ display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; max-width: 720px; margin: 2rem auto; text-align: left; }}
     .meta div {{ background: #1a1a1a; padding: 1rem; border-radius: 4px; }}
     .step {{ background: #1a1a1a; padding: 1.25rem; margin: 1.5rem 0; border-radius: 6px; }}

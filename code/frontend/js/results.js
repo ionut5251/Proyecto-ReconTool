@@ -204,6 +204,9 @@ function exploitBlockTitle(attempt) {
   if (mod === "telnet_root_blank") {
     return `Telnet ${attempt.host}:${attempt.port}`;
   }
+  if (mod === "smb_anonymous") {
+    return `SMB ${attempt.host}:${attempt.port || 445}`;
+  }
   return `FTP ${attempt.host}:${attempt.port}`;
 }
 
@@ -479,6 +482,10 @@ function renderActiveResults(data) {
   const status = document.getElementById("scan-status");
   const flagText = data.exploitation?.flag_captured ? " · FLAG capturada" : "";
   status.textContent = `Ataque activo completado${flagText}`;
+  const op = data.exploitation?.operational_decision || data.operational_decision;
+  if (op?.reason) {
+    status.textContent += ` — ${op.reason}`;
+  }
   status.className = data.exploitation?.flag_captured ? "status done flag-ok" : "status done";
 
   renderPipelineLog(data.pipeline_log);

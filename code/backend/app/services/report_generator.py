@@ -130,7 +130,7 @@ def generate_audit_report(scan_data: dict, auditor: str | None = None) -> bytes:
     r1.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
     r1.bold = True
     r2 = brand.add_run("Tool")
-    r2.font.color.rgb = RGBColor(0x00, 0xCC, 0x44)
+    r2.font.color.rgb = RGBColor(0x3D, 0x8F, 0x62)
     r2.bold = True
 
     doc.add_paragraph()
@@ -231,6 +231,8 @@ def generate_audit_report(scan_data: dict, auditor: str | None = None) -> bytes:
             vuln_desc = "Telnet con credenciales por defecto — lectura de flag"
         elif vector == "ftp_anonymous":
             vuln_desc = "FTP anónimo — lectura de flag.txt"
+        elif vector == "smb_anonymous":
+            vuln_desc = "SMB anónimo — lectura de flag en share"
         else:
             vuln_desc = "Servicio expuesto — compromiso y lectura de flag"
         r = vuln_table.add_row().cells
@@ -246,6 +248,8 @@ def generate_audit_report(scan_data: dict, auditor: str | None = None) -> bytes:
         recs.insert(0, "Deshabilitar Telnet o exigir autenticación fuerte; no usar root remoto.")
     elif vector == "ftp_anonymous":
         recs.insert(0, "Deshabilitar login anónimo en FTP y restringir permisos.")
+    elif vector == "smb_anonymous":
+        recs.insert(0, "Restringir acceso anónimo a shares SMB y permisos de lectura.")
     else:
         recs.insert(0, "Corregir la misconfiguración que permitió la lectura de la flag.")
     for rec in recs:

@@ -21,6 +21,7 @@ No menciones nombres comerciales de plataformas de labs ni máquinas concretas e
 
 Si solo hay puerto 21/FTP abierto: prioriza login anonymous, ls, get flag.txt.
 Si solo hay puerto 23/Telnet abierto: prioriza telnet root con contraseña vacía, ls, cat flag.txt.
+Si hay SMB (445/139): prioriza smbclient -L, explorar shares/carpetas y flag.txt.
 Usa attack_plan del scan_data si existe; no contradigas el vector principal detectado.
 Si exploitation.flag_captured es true, resume cómo se obtuvo la flag (solo IP/servicios, sin nombres de box).
 

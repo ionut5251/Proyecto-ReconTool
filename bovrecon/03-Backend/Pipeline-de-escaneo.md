@@ -41,9 +41,12 @@ Entrada: `POST /api/attack`.
 
 | Puerto/servicio | ID | Lab |
 |-----------------|-----|-----|
-| 21 / ftp | `ftp_anonymous` | HTB Fawn |
-| 23 / telnet | `telnet_root_blank` | HTB Meow |
+| 21 / ftp | `ftp_anonymous` | FTP anónimo |
+| 23 / telnet | `telnet_root_blank` | Telnet root |
+| 445 / 139 smb | `smb_anonymous` | SMB shares |
 | 80/443/… | `http_enum` | (futuro) |
+
+`ai_operational.py` elige módulo si hay varios puertos; si no hay IA, prioridad heurística.
 
 `exploit_runner.py` no ejecuta todos los módulos; elige uno según `attack_plan.primary`.
 

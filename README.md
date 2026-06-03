@@ -31,9 +31,11 @@ Instala dependencias y arranca el servidor. Ver [bovrecon/05-Operaciones/Desplie
 
 Abrir http://127.0.0.1:8000
 
-Flujo UI: recon pasivo → botón **Proceder con ataque activo** → flag e informes (Word/HTML con logo).
+Flujo UI: recon pasivo → **Proceder con ataque activo** → flag e informes.
 
-Branding: **Recon** (blanco) + **Tool** (verde matrix). Logo en `code/frontend/img/recontool-logo.png`.
+Módulos activos: FTP, Telnet, **SMB** (`smbclient`). IA operativa elige vector si hay varios servicios.
+
+Branding: verde oscuro `#1a5c38` en botones; logo centrado en home.
 
 ## Repositorio
 

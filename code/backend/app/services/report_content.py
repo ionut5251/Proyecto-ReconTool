@@ -72,6 +72,8 @@ def executive_summary(scan_data: dict) -> str:
             vector_desc = "Telnet con usuario root y contraseña vacía"
         elif vector == "ftp_anonymous":
             vector_desc = "FTP con autenticación anónima"
+        elif vector == "smb_anonymous":
+            vector_desc = "SMB anónimo — enumeración de shares y lectura de flag"
         else:
             vector_desc = "explotación automática según servicios detectados"
         return (
@@ -154,6 +156,10 @@ def build_audit_steps(scan_data: dict) -> list[dict]:
             title = "Explotación — Telnet (root / sin contraseña)"
             tool = "ReconTool telnet_probe / telnet"
             objective = "Acceso Telnet con usuario root y contraseña vacía."
+        elif module == "smb_anonymous":
+            title = "Explotación — SMB anónimo"
+            tool = "ReconTool smb_probe / smbclient"
+            objective = "Listar shares SMB, explorar carpetas y obtener flag.txt."
         else:
             title = "Explotación — FTP anónimo"
             tool = "ReconTool ftp_probe / FTP anonymous"

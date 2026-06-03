@@ -30,6 +30,8 @@
 | API REST | [[03-Backend/API]] |
 | FTP auto-exploit (Fawn) | [[03-Backend/Servicio-FTP-exploit]] |
 | Telnet auto-exploit (Meow) | [[03-Backend/Servicio-Telnet-exploit]] |
+| SMB auto-exploit | [[03-Backend/Servicio-SMB-exploit]] |
+| IA operativa (vector) | `ai_operational.py` |
 | Flujo pasivo / activo | [[03-Backend/Pipeline-de-escaneo]] |
 | Informe Word | [[03-Backend/Servicio-informe-Word]] |
 | Capturas automáticas | [[03-Backend/Servicio-capturas-automaticas]] |
@@ -53,6 +55,8 @@
 | IA vectores | ✅ OpenAI / Ollama vía `.env` |
 | **FTP anónimo + flag (Fawn)** | ✅ `ftp_probe.py` |
 | **Telnet root vacío + flag (Meow)** | ✅ `telnet_probe.py` |
+| **SMB anónimo + flag** | ✅ `smb_probe.py` |
+| **IA operativa (elección vector)** | ✅ `ai_operational.py` |
 | **UI dos fases (OSINT → ataque)** | ✅ `results.html` + `/api/attack` |
 | **Informe Word (.docx)** | ✅ |
 | **Informe HTML (Kali)** | ✅ Firefox |

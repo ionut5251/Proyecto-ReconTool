@@ -2,6 +2,7 @@ from typing import Any
 
 from app.services.ftp_probe import manual_ftp_playbook
 from app.services.service_router import detect_attack_vectors
+from app.services.smb_probe import manual_smb_playbook
 from app.services.telnet_probe import manual_telnet_playbook
 
 
@@ -16,6 +17,8 @@ def build_playbook_analysis(target: str, scan_data: dict, exploitation: dict) ->
             checks = manual_ftp_playbook(target)
         elif vid == "telnet_root_blank":
             checks = manual_telnet_playbook(target)
+        elif vid == "smb_anonymous":
+            checks = manual_smb_playbook(target)
 
         vectors_out.append(
             {

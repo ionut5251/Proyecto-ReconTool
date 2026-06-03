@@ -5,10 +5,12 @@
   --text: #e8e8e8;
   --muted: #888;
   --recon: #ffffff;
-  --tool: #00ff41;
-  --accent: #00ff41;
-  --accent-hover: #33ff66;
-  --ok: #3ddc84;
+  --tool: #5cb882;
+  --accent: #1a5c38;
+  --accent-hover: #247a4a;
+  --accent-text: #dce8e0;
+  --report-green: #3d8f62;
+  --ok: #4a9d6e;
   --warn: #f5a623;
   --critical: #ff3b30;
   --font: "Segoe UI", system-ui, sans-serif;
@@ -44,6 +46,27 @@ a {
   background: #000;
 }
 
+.site-header-home {
+  flex-direction: column;
+  justify-content: center;
+  padding: 2.5rem 2rem 1.5rem;
+  border: none;
+}
+
+.brand-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.brand-logo-link {
+  display: block;
+  line-height: 0;
+}
+
 .brand {
   display: flex;
   align-items: center;
@@ -51,14 +74,24 @@ a {
   text-decoration: none;
 }
 
+.brand-compact {
+  flex-shrink: 0;
+}
+
 .brand-logo {
-  height: 48px;
+  height: 44px;
   width: auto;
   display: block;
 }
 
+.hero-logo {
+  height: min(200px, 28vw);
+  max-width: min(420px, 90vw);
+  width: auto;
+}
+
 .page-home .brand-logo {
-  height: 72px;
+  height: min(200px, 28vw);
 }
 
 .logo {
@@ -82,8 +115,12 @@ a {
 
 .page-home .site-header {
   flex-direction: column;
-  padding: 2rem;
+  padding: 2.5rem 2rem 1.5rem;
   border: none;
+}
+
+.page-home .tagline {
+  margin-top: 0.25rem;
 }
 
 .search-hero {
@@ -132,7 +169,7 @@ a {
   padding: 0 1.5rem;
   border: none;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-text);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
@@ -184,7 +221,7 @@ a {
 .target-banner h1 {
   font-family: var(--mono);
   font-size: 2rem;
-  color: var(--accent);
+  color: var(--tool);
 }
 
 .status {
@@ -539,7 +576,7 @@ td {
   font-size: 1rem;
   font-weight: 600;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-text);
   border: none;
   border-radius: 4px;
   cursor: pointer;

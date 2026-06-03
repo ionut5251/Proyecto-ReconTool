@@ -33,6 +33,8 @@ def home():
             "attack_vector_detection",
             "ftp_exploit",
             "telnet_exploit",
+            "smb_exploit",
+            "ai_operational_vector",
             "audit_report_docx",
             "audit_report_html",
         ],
