@@ -254,17 +254,17 @@ def _run_ftp(session: ReconSession, port: int) -> None:
             f"# probar {len(users)}x{len(passwords)} credenciales (FTP autenticado) en {target}",
             note="ftp login")
         fl = try_ftp_login(target, users, passwords, port=port)
-        if fl.get("success"):
-            ui.flag(f"Acceso FTP autenticado: {fl['user']} : {fl['password']}")
+        valid = fl.get("valid") or []
+        if valid:
+            ui.flag(f"{len(valid)} combinación(es) válida(s) en el FTP:")
+            for c in valid:
+                ui.bullet(f"usuario: {c['user']}   contraseña: {c['password']}")
             if fl.get("files"):
                 ui.info("Contenido de esa cuenta FTP:")
                 for fn in fl["files"][:40]:
                     ui.bullet(fn)
-            ui.recommend("Esas credenciales abren el FTP; pruébalas también en SSH/web si existen.")
         else:
-            msg = fl.get("error") or "ninguna combinación válida"
-            ui.warn(f"Ninguna combinación encontrada para el FTP ({msg}).")
-            ui.recommend("Guardadas: si hay web con login (puerto 80), las probaré allí en el paso de Fuzz web.")
+            ui.warn("Ninguna combinación encontrada para el FTP.")
 
     # Recomendaciones útiles (hash/clave); omito la genérica "revísalos a mano".
     for rec in res.get("recommendations", []):
@@ -281,6 +281,45 @@ def _run_ftp(session: ReconSession, port: int) -> None:
             ui.warn(f"No se pudieron generar capturas: {exc}")
     elif not (users or passwords):
         ui.warn("Sin flag ni credenciales directas por FTP.")
+
+
+def _open_in_browser(url: str) -> None:
+    import shutil
+    import subprocess
+
+    sudo_user = os.environ.get("SUDO_USER")
+    opener = shutil.which("xdg-open") or shutil.which("firefox")
+    if not opener:
+        ui.info(f"Ábrelo tú en el navegador: {url}")
+        return
+    try:
+        cmd = ["sudo", "-u", sudo_user, opener, url] if sudo_user else [opener, url]
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        ui.ok(f"Abriendo {url} en el navegador...")
+    except Exception as exc:
+        ui.info(f"No pude abrir el navegador ({exc}). Ábrelo tú: {url}")
+
+
+def _manual_login_fallback(session: ReconSession, login_url: str, assume_yes: bool, web_record: dict) -> None:
+    """Cuando no se puede confirmar el login desde el CLI: lo pasamos al usuario."""
+    ui.warn("En este momento no puedo confirmar el acceso al login desde aquí "
+            "(puede necesitar navegador/sesión, o incluso SSH).")
+    if assume_yes:
+        return
+    if not ui.ask_yes_no(
+        f"¿Te abro {login_url} para que lo pruebes a mano con las credenciales guardadas en {session.loot}?",
+        default=True,
+    ):
+        ui.warn("Siento no poder seguir ayudándote por ahora; lo mejoraré en próximas actualizaciones. :(")
+        return
+    _open_in_browser(login_url)
+    ui.info(f"Las credenciales están guardadas en: {session.loot}")
+    if ui.ask_yes_no("¿Ha funcionado alguna?", default=True):
+        ui.flag("¡ENHORABUENA! Acceso conseguido. Genero el informe hasta este punto.")
+        web_record["login_result"] = {"success": True, "manual": True, "url": login_url}
+    else:
+        ui.info("De acuerdo, lo dejamos aquí por ahora. Añadiré más vías de escalada en próximas versiones.")
+        web_record["login_result"] = {"success": False, "manual": True, "url": login_url}
 
 
 def _run_http(session: ReconSession, port: int, assume_yes: bool = False) -> None:
@@ -349,10 +388,8 @@ def _run_http(session: ReconSession, port: int, assume_yes: bool = False) -> Non
             if lr.get("success"):
                 ui.flag(f"Conexión al login OK en {login_url} → {lr['user']} : {lr['password']}  ({lr.get('evidence', '')})")
                 ui.recommend(f"Entra en {login_url} con esas credenciales para el panel/flag.")
-            elif lr.get("error"):
-                ui.warn(f"No concluyente: {lr['error']} (campos detectados: {lr.get('field_user')}/{lr.get('field_pass')})")
             else:
-                ui.warn(f"Ninguna combinación funcionó ({lr.get('attempts')} intentos). Pruébalo a mano en {login_url}.")
+                _manual_login_fallback(session, login_url, assume_yes, web_record)
         else:
             web_record["login"] = login_url
 

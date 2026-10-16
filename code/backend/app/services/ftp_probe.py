@@ -236,7 +236,7 @@ def try_ftp_login(host: str, users: list[str], passwords: list[str],
     cuenta FTP con más ficheros que el anónimo.
     """
     result: dict[str, Any] = {"success": False, "user": None, "password": None,
-                              "attempts": 0, "files": [], "error": None}
+                              "attempts": 0, "files": [], "valid": [], "error": None}
     pairs = [(u.strip(), p.strip()) for u in (users or []) for p in (passwords or [])
              if u.strip() and p.strip()]
     if not pairs:
@@ -250,16 +250,18 @@ def try_ftp_login(host: str, users: list[str], passwords: list[str],
             ftp = ftplib.FTP(timeout=timeout)
             ftp.connect(host, port)
             ftp.login(user, pwd)
-            result.update({"success": True, "user": user, "password": pwd})
-            try:
-                result["files"] = [n for n in ftp.nlst() if n not in (".", "..")]
-            except Exception:
-                pass
+            result["valid"].append({"user": user, "password": pwd})
+            if not result["success"]:
+                # Guarda el listado de la primera cuenta que entra.
+                result.update({"success": True, "user": user, "password": pwd})
+                try:
+                    result["files"] = [n for n in ftp.nlst() if n not in (".", "..")]
+                except Exception:
+                    pass
             try:
                 ftp.quit()
             except Exception:
                 pass
-            return result
         except ftplib.error_perm:
             pass  # credenciales incorrectas; siguiente
         except (OSError, TimeoutError, ftplib.error_temp) as exc:

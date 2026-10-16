@@ -85,7 +85,10 @@ def build_transcript(session, auditor: str = "") -> str:
         if web.get("login"):
             lines.append(f"- **Login:** {web.get('login')}")
         if lr and lr.get("success"):
-            lines.append(f"- **Credenciales válidas:** `{lr.get('user')} : {lr.get('password')}` ({lr.get('evidence','')})")
+            if lr.get("manual"):
+                lines.append("- **Acceso al login:** conseguido manualmente por el auditor con las credenciales guardadas.")
+            else:
+                lines.append(f"- **Credenciales válidas:** `{lr.get('user')} : {lr.get('password')}` ({lr.get('evidence','')})")
         lines.append("")
 
     flags = scan_data.get("exploitation", {}).get("flags") or []

