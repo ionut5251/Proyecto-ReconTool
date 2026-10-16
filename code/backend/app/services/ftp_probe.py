@@ -184,12 +184,48 @@ def classify_filename(name: str) -> list[str]:
         tags.append("flag")
     if base in CRED_FILENAMES:
         tags.append("credential")
+    # Por nombre: cualquier fichero que huela a usuarios/contraseñas, aunque
+    # tenga una extensión rara (p. ej. allowed.userlist, allowed.userlist.passwd).
+    cred_hints = ("user", "pass", "cred", "secret", "login", "account", "shadow", "htpasswd")
+    if "credential" not in tags and "flag" not in tags and any(h in base for h in cred_hints):
+        tags.append("credential")
     if base.startswith("id_") or base.endswith((".key", ".pem", ".ppk")):
         tags.append("key")
     ext = "." + base.rsplit(".", 1)[-1] if "." in base else ""
     if ext in INTERESTING_EXT and not tags:
         tags.append("interesting")
     return tags
+
+
+def parse_credential_lists(loot_dir: str) -> tuple[list[str], list[str]]:
+    """Separa los ficheros descargados en listas de usuarios y de contraseñas.
+
+    Heurística por nombre: '*pass*' → contraseñas; '*user*'/'*userlist*' → usuarios.
+    Devuelve (usuarios, contraseñas) sin duplicados.
+    """
+    from pathlib import Path as _Path
+
+    users: list[str] = []
+    passwords: list[str] = []
+    for p in sorted(_Path(loot_dir).glob("*")):
+        if not p.is_file():
+            continue
+        name = p.name.lower()
+        try:
+            lines = [ln.strip() for ln in p.read_text(encoding="utf-8", errors="replace").splitlines() if ln.strip()]
+        except OSError:
+            continue
+        # Evita volcar binarios enormes como "credenciales".
+        if not lines or len(lines) > 5000 or any(len(ln) > 200 for ln in lines):
+            continue
+        if "pass" in name:
+            passwords += lines
+        elif "user" in name or "userlist" in name or "cred" in name or "account" in name:
+            users += lines
+    # dedupe conservando orden
+    users = list(dict.fromkeys(users))
+    passwords = list(dict.fromkeys(passwords))
+    return users, passwords
 
 
 def _hashcat_hint(sample: str) -> str:

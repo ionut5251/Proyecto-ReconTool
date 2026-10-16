@@ -53,8 +53,21 @@ def scan_target(target: str) -> dict:
                     }
                 )
 
+    raw_xml = ""
+    command = ""
+    try:
+        raw_xml = scanner.get_nmap_last_output().decode("utf-8", errors="replace")
+    except Exception:
+        pass
+    try:
+        command = scanner.command_line()
+    except Exception:
+        pass
+
     return {
         "target": target,
         "results": results,
         "os": os_info,
+        "_nmap_command": command,
+        "_nmap_xml": raw_xml,
     }

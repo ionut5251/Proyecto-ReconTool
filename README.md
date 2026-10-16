@@ -11,7 +11,7 @@ ReconTool escanea un objetivo autorizado, correlaciona vulnerabilidades, te **gu
 ## Fases
 
 - **Fase 1 — web (entregada):** backend FastAPI + UI estilo Shodan en dos fases (pasiva/activa) + informe Word. Se arranca con `./recontool`.
-- **Fase 2 — CLI tipo ADScan (en curso):** ReconTool se **instala en el equipo** y se usa desde terminal con **sesiones efímeras**. Es lo que documenta el resto de este README.
+- **Fase 2 — CLI tipo ADScan (en curso):** ReconTool se **instala en el equipo** y se usa desde terminal, con una **carpeta de trabajo por IP**. Es lo que documenta el resto de este README.
 
 ---
 
@@ -49,20 +49,23 @@ Flujo:
 3. Ejecuta el vector elegido, te muestra lo interesante y las recomendaciones de escalada, y si encuentra la **flag** la escribe en pantalla.
 4. Pulsas **finalizar** y se genera el informe.
 
-### Caso FTP (máquinas Linux fáciles)
+### Encadenado FTP → web (máquinas Linux fáciles)
 
-Si detecta FTP, ReconTool entra como anónimo, **lista todo el árbol**, descarga los ficheros interesantes y señala lo que importa: si ve un **hash** recomienda `john`/`hashcat` con el comando adecuado, si ve una **clave privada** recomienda el uso por SSH, y si hay **credenciales** avisa para reutilizarlas. Si da con la flag, la muestra.
+Si detecta FTP, ReconTool entra como anónimo, **lista todo el árbol**, descarga los ficheros interesantes (incluidas **listas de usuarios/contraseñas** tipo `allowed.userlist`) y los guarda. Si además hay un puerto web, al fuzzear encuentra rutas (login, dashboard…) y **ofrece probar esas credenciales en el login**. Si ve un **hash** recomienda `john`/`hashcat`, si ve una **clave privada** el uso por SSH. Si da con la flag, la muestra.
 
-### Sesiones efímeras ("borrón y cuenta nueva")
+### Carpeta de trabajo por IP
 
-Cada ejecución abre una sesión aislada que **se borra al terminar**. No hay cuentas ni base de datos: volver a escanear la misma IP empieza de cero. Lo único que se conserva son los informes, por defecto en el **Escritorio**:
+Cada ejecución crea (o reutiliza) una carpeta con el nombre del objetivo en el directorio desde el que lanzas `recon`, y **todo se guarda ahí** (se conserva, para seguir a mano o si la sesión se corta):
 
 ```
-~/Desktop/informe_pentest_<ip>_<fecha>.docx
-~/Desktop/transcripcion_<ip>_<fecha>.md
+./<ip>/
+   scan.txt / scan.xml          # resultado de nmap
+   loot/                        # ficheros descargados (credenciales, etc.)
+   informe_pentest_<ip>_<fecha>.docx
+   transcripcion_<ip>_<fecha>.md
 ```
 
-(cámbialo con `--report-dir <carpeta>`)
+No hay cuentas ni base de datos: el estado vive en esa carpeta. Cambia la ubicación base con `--report-dir <carpeta>`.
 
 ---
 

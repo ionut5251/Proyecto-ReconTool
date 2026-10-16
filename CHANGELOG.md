@@ -3,6 +3,21 @@
 Formato basado en *Keep a Changelog*. El detalle y las decisiones de diseño
 están en la bóveda: `bovrecon/01-Proyecto/Changelog-P1-a-P3.md`.
 
+## [0.3.0] — 2026-10-16
+
+### Cambiado
+- **Carpeta de trabajo por IP** persistente (`./<ip>/`) en lugar de sesión temporal
+  que se borraba: ahí van `scan.txt`/`scan.xml` (nmap), `loot/`, e informes.
+- Menú de vectores con nombres (`[1] FTP anónimo · [2] Fuzz web · …`).
+
+### Añadido
+- FTP reconoce y descarga **listas de usuarios/contraseñas** (allowed.userlist, *.passwd…)
+  y las deja listas para reutilizar.
+- Enumeración web (`http_enum`): fuzzing con **ffuf/gobuster/feroxbuster** (con fallback),
+  parseo de rutas, detección de rutas interesantes (login/dashboard…) y **prueba de las
+  credenciales del FTP contra el login** (encadenado).
+- Instalador tolerante a errores de `apt` de terceros.
+
 ## [v1.0-practica3] — 2026-10-16
 
 ### Añadido

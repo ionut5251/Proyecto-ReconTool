@@ -1,38 +1,50 @@
-"""Sesión efímera de ReconTool.
+"""Sesión de trabajo de ReconTool (carpeta por IP, persistente).
 
-Modelo "borrón y cuenta nueva": cada ejecución de `recon` crea una sesión
-aislada en un directorio temporal del sistema. Todo el trabajo intermedio
-(capturas, descargas, logs) vive ahí dentro. Al terminar, el único artefacto
-que sobrevive es el informe, que se escribe en una carpeta persistente aparte.
-La sesión se destruye al salir, así que no hay base de datos de usuarios,
-credenciales ni estado entre ejecuciones: volver a escanear la misma IP
-arranca de cero.
+Cada ejecución de `recon <ip>` crea (o reutiliza) una carpeta con el nombre del
+objetivo dentro del directorio desde el que se lanza:
+
+    ./<ip>/
+        scan.txt / scan.xml      <- resultado de nmap (para 'cat' o uso manual)
+        loot/                    <- ficheros descargados (credenciales, etc.)
+        screenshots/             <- evidencias
+        informe_pentest_*.docx
+        transcripcion_*.md
+
+La carpeta NO se borra al terminar: así, si la sesión se corta o quieres seguir
+a mano más tarde, tienes el scan y el botín a mano. No hay cuentas ni base de
+datos de usuarios; el estado vive en esa carpeta y nada más.
 """
 
 from __future__ import annotations
 
-import shutil
-import tempfile
+import importlib
+import re
 import time
 from pathlib import Path
 from typing import Any
 
 
-class ReconSession:
-    """Contenedor de una ejecución. Úsese como context manager."""
+def safe_name(target: str) -> str:
+    return re.sub(r"[^\w.\-]", "_", str(target))
 
-    def __init__(self, target: str) -> None:
+
+class ReconSession:
+    """Carpeta de trabajo por objetivo. Úsese como context manager."""
+
+    def __init__(self, target: str, base_dir: str | Path) -> None:
         self.target = target
         self.started_at = time.time()
-        self.dir = Path(tempfile.mkdtemp(prefix="recontool-"))
-        self.screenshots = self.dir / "screenshots"
+        self.base_dir = Path(base_dir)
+        self.dir = self.base_dir / safe_name(target)
         self.loot = self.dir / "loot"
-        self.screenshots.mkdir(parents=True, exist_ok=True)
-        self.loot.mkdir(parents=True, exist_ok=True)
+        self.screenshots = self.dir / "screenshots"
+        for d in (self.dir, self.loot, self.screenshots):
+            d.mkdir(parents=True, exist_ok=True)
 
         self.scan_data: dict[str, Any] = {}
-        # Registro de comandos ejecutados (para la transcripción del informe).
         self.commands: list[dict[str, str]] = []
+        # Credenciales descubiertas durante la sesión, para reutilizar entre módulos.
+        self.creds: dict[str, list[str]] = {"users": [], "passwords": [], "files": []}
 
         self._redirect_screenshots()
 
@@ -40,29 +52,32 @@ class ReconSession:
 
     def log_command(self, command: str, note: str = "") -> None:
         self.commands.append(
-            {
-                "ts": time.strftime("%H:%M:%S"),
-                "command": command,
-                "note": note,
-            }
+            {"ts": time.strftime("%H:%M:%S"), "command": command, "note": note}
         )
 
-    # -- capturas dentro de la sesión ----------------------------------------
+    # -- credenciales ---------------------------------------------------------
+
+    def add_users(self, users: list[str]) -> None:
+        for u in users:
+            if u and u not in self.creds["users"]:
+                self.creds["users"].append(u)
+
+    def add_passwords(self, passwords: list[str]) -> None:
+        for p in passwords:
+            if p and p not in self.creds["passwords"]:
+                self.creds["passwords"].append(p)
+
+    def has_creds(self) -> bool:
+        return bool(self.creds["users"] or self.creds["passwords"])
+
+    # -- capturas dentro de la carpeta de la sesión ---------------------------
 
     def _redirect_screenshots(self) -> None:
-        """Apunta la carpeta de capturas a la sesión efímera.
-
-        Los módulos ya importados hacen `from app.core.config import
-        SCREENSHOTS_DIR`, así que hay que reasignar el nombre en cada módulo,
-        no solo en config.
-        """
         from app.core import config as _config
 
         _config.SCREENSHOTS_DIR = self.screenshots
         for mod_name in ("app.services.step_capture", "app.services.report_generator"):
             try:
-                import importlib
-
                 mod = importlib.import_module(mod_name)
                 if hasattr(mod, "SCREENSHOTS_DIR"):
                     mod.SCREENSHOTS_DIR = self.screenshots
@@ -74,11 +89,9 @@ class ReconSession:
     def elapsed(self) -> float:
         return time.time() - self.started_at
 
-    def cleanup(self) -> None:
-        shutil.rmtree(self.dir, ignore_errors=True)
-
     def __enter__(self) -> "ReconSession":
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
-        self.cleanup()
+        # Persistente: NO se borra la carpeta.
+        return None

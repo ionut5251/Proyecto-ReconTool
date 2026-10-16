@@ -1,16 +1,14 @@
-"""Orquestador interactivo del CLI de ReconTool.
+"""Orquestador interactivo del CLI de ReconTool (Fase 2).
 
-Flujo: recon pasivo -> mostrar hallazgos -> preguntar al usuario qué vector
-seguir (con recomendación según puertos/servicios) -> ejecutar el módulo
-reutilizando los servicios del backend -> informe. Todo dentro de una sesión
-efímera que se borra al terminar.
+Flujo: crea una carpeta de trabajo por IP, lanza el recon (nmap+CVE+OSINT) y
+guarda el scan, muestra hallazgos y deja que el usuario encadene vectores:
+FTP (saca y guarda credenciales) -> web (fuzzing + login probando esas
+credenciales) -> informe. Todo se queda en ./<ip>/.
 """
 
 from __future__ import annotations
 
 import os
-import shutil
-import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -18,15 +16,13 @@ from app.cli import ui
 from app.cli.session import ReconSession
 from app.cli.transcript import build_transcript
 
-# Etiquetas legibles para cada vector conocido.
 VECTOR_LABELS = {
-    "ftp_anonymous": "Conexión FTP anónima (buscar flag.txt)",
+    "ftp_anonymous": "Conexión FTP anónima (enumerar y sacar credenciales)",
     "telnet_root_blank": "Acceso Telnet como root sin contraseña",
     "smb_anonymous": "Enumerar shares SMB anónimos",
-    "http_enum": "Fuzzing / enumeración web",
+    "http_enum": "Fuzzing / enumeración web (+ login)",
 }
 
-# Nombre corto para la línea de elección del menú.
 VECTOR_SHORT = {
     "ftp_anonymous": "FTP anónimo",
     "telnet_root_blank": "Telnet root",
@@ -34,12 +30,68 @@ VECTOR_SHORT = {
     "http_enum": "Fuzz web",
 }
 
-FUZZERS = ("ffuf", "feroxbuster", "gobuster")
-WORDLISTS = (
-    "/usr/share/wordlists/dirb/common.txt",
-    "/usr/share/seclists/Discovery/Web-Content/common.txt",
-    "/usr/share/wordlists/dirbuster/directory-list-2.3-small.txt",
-)
+
+# ---------------------------------------------------------------------------
+# Carpeta de trabajo / rutas
+# ---------------------------------------------------------------------------
+
+def _invoking_base_dir() -> Path:
+    base = os.environ.get("RECON_INVOKE_DIR") or os.getcwd()
+    return Path(base)
+
+
+def _chown_tree_to_invoker(root: Path) -> None:
+    uid = os.environ.get("SUDO_UID")
+    gid = os.environ.get("SUDO_GID")
+    if not uid:
+        return
+    try:
+        for p in [root, *root.rglob("*")]:
+            os.chown(p, int(uid), int(gid or uid))
+    except OSError:
+        pass
+
+
+def _port_for(scan_data: dict, vector_id: str, default: int) -> int:
+    for v in (scan_data.get("attack_plan") or {}).get("vectors", []):
+        if v.get("id") == vector_id and v.get("port"):
+            return int(v["port"])
+    return default
+
+
+# ---------------------------------------------------------------------------
+# nmap -> fichero scan
+# ---------------------------------------------------------------------------
+
+def _write_scan_files(session: ReconSession) -> None:
+    from app.core.config import NMAP_ARGUMENTS
+    from app.services.report_content import ports_summary
+
+    scan_data = session.scan_data
+    lines = [
+        f"# ReconTool - nmap scan de {scan_data.get('target', session.target)}",
+        f"# Comando: {scan_data.get('_nmap_command') or 'nmap ' + NMAP_ARGUMENTS}",
+        f"# Fecha: {datetime.now():%Y-%m-%d %H:%M}",
+        "",
+        "Puertos abiertos:",
+    ]
+    for r in scan_data.get("results", []):
+        if str(r.get("state", "")).lower() == "open":
+            prod = f" {r.get('product', '')} {r.get('version', '')}".rstrip()
+            lines.append(f"  {r.get('port')}/tcp  {r.get('service', '?')}{prod}")
+    os_info = scan_data.get("os") or []
+    if os_info:
+        lines.append("")
+        lines.append("SO estimado: " + "; ".join(f"{o.get('name')} ({o.get('accuracy')}%)" for o in os_info[:3]))
+    lines.append("")
+    lines.append(f"Resumen: {ports_summary(scan_data)}")
+    (session.dir / "scan.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    xml = scan_data.get("_nmap_xml")
+    if xml:
+        (session.dir / "scan.xml").write_text(xml, encoding="utf-8")
+    session.log_command(scan_data.get("_nmap_command") or f"nmap {NMAP_ARGUMENTS} {session.target}",
+                        note="recon inicial (guardado en scan.txt/scan.xml)")
 
 
 # ---------------------------------------------------------------------------
@@ -48,7 +100,6 @@ WORDLISTS = (
 
 def _show_findings(scan_data: dict) -> None:
     ui.section("Hallazgos del reconocimiento")
-
     open_rows = [r for r in scan_data.get("results", []) if str(r.get("state", "")).lower() == "open"]
     if not open_rows:
         ui.warn("No se detectaron puertos abiertos.")
@@ -79,29 +130,22 @@ def _show_findings(scan_data: dict) -> None:
             ui.bullet(f"web {w.get('url')}: HTTP {w.get('status')}{title}")
 
 
-# ---------------------------------------------------------------------------
-# Recomendación y menú de vectores
-# ---------------------------------------------------------------------------
-
 def _recommendation_text(ids: set[str]) -> str:
     has_web = "http_enum" in ids
-    if ids == {"http_enum"}:
-        return (
-            "Solo veo servicio web abierto. Lo natural aquí es un FUZZ de "
-            "directorios y archivos para descubrir rutas ocultas."
-        )
     if has_web and "ftp_anonymous" in ids:
         return (
-            "Tienes web y FTP. Mi recomendación: probar primero el FTP anónimo "
-            "(es rápido y en labs suele soltar flag.txt directamente); si no sale, "
-            "pasamos al fuzz web."
+            "Tienes FTP y web. Plan sugerido: (1) FTP anónimo para sacar ficheros/"
+            "credenciales, (2) fuzz del puerto 80 para encontrar login/paneles, "
+            "(3) probar esas credenciales en el login. Empieza por el FTP."
         )
+    if ids == {"http_enum"}:
+        return "Solo veo web: lo natural es un FUZZ de directorios para descubrir rutas (login, paneles...)."
     if "telnet_root_blank" in ids:
-        return "Hay Telnet: suele ser la vía más directa (root con contraseña vacía). Empezaría por ahí."
+        return "Hay Telnet: suele ser la vía más directa (root con contraseña vacía)."
     if "smb_anonymous" in ids:
-        return "Hay SMB: merece la pena enumerar shares anónimos antes que nada."
+        return "Hay SMB: enumera shares anónimos antes que nada."
     if "ftp_anonymous" in ids:
-        return "Hay FTP: el login anónimo es la prueba más rápida y rentable."
+        return "Hay FTP: empieza por el login anónimo y mira qué hay."
     return "Elige el vector que quieras explorar."
 
 
@@ -128,61 +172,18 @@ def _build_options(scan_data: dict) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Ejecución de vectores
+# Vectores
 # ---------------------------------------------------------------------------
 
-def _run_known_vector(session: ReconSession, vector_id: str) -> None:
-    """FTP / Telnet / SMB: reutiliza el motor de explotación del backend."""
-    from app.services.exploit_runner import run_exploitation_checks
-    from app.services.playbook_advisor import build_playbook_analysis
-    from app.services.step_capture import capture_all_evidence
-
-    scan_data = session.scan_data
-    target = scan_data.get("target", session.target)
-
-    operational = {
-        "vector_id": vector_id,
-        "source": "user",
-        "reason": "Vector elegido por el usuario en el CLI",
-        "confidence": "high",
-    }
-
-    ui.info(f"Ejecutando módulo: {VECTOR_LABELS.get(vector_id, vector_id)}")
-    result = run_exploitation_checks(target, scan_data, vector_id=vector_id, operational=operational)
-    scan_data["exploitation"] = result
-    scan_data["ai_analysis"] = build_playbook_analysis(target, scan_data, result)
-    scan_data["phase"] = "active"
-
-    for cmd in result.get("playbook_steps", []):
-        session.log_command(cmd, note="playbook " + vector_id)
-
-    for attempt in result.get("attempts", []):
-        for step in attempt.get("steps", []):
-            status = step.get("status", "ok")
-            line = f"[{step.get('action')}] {step.get('detail')}"
-            (ui.err if status == "error" else ui.bullet)(line)
-
-    if result.get("flag_captured"):
-        for f in result.get("flags", []):
-            ui.flag(f"{f.get('filename')}: {f.get('content')}")
-        try:
-            capture_all_evidence(scan_data)
-        except Exception as exc:
-            ui.warn(f"No se pudieron generar capturas: {exc}")
-    else:
-        ui.warn(result.get("message", "Sin flag en este vector."))
-
-
 def _run_ftp(session: ReconSession, port: int) -> None:
-    """FTP anónimo con enumeración enriquecida (Fase 2)."""
-    from app.services.ftp_probe import enumerate_ftp_anonymous, manual_ftp_playbook
+    from app.services.ftp_probe import enumerate_ftp_anonymous, manual_ftp_playbook, parse_credential_lists
     from app.services.playbook_advisor import build_playbook_analysis
     from app.services.step_capture import capture_all_evidence
 
     scan_data = session.scan_data
     target = scan_data.get("target", session.target)
 
-    ui.info(f"Conectando por FTP anónimo a {target}:{port} y enumerando el árbol...")
+    ui.info(f"Conectando por FTP anónimo a {target}:{port} y enumerando...")
     session.log_command(f"ftp {target} {port}    # usuario: anonymous", note="ftp")
 
     res = enumerate_ftp_anonymous(target, port, loot_dir=str(session.loot))
@@ -210,20 +211,27 @@ def _run_ftp(session: ReconSession, port: int) -> None:
         ui.info(f"Contenido accesible ({len(listing)} entradas):")
         for item in listing[:40]:
             ui.bullet(item)
-        if len(listing) > 40:
-            ui.bullet(f"... (+{len(listing) - 40} más)")
 
     interesting = res.get("interesting", [])
     if interesting:
-        ui.section("Ficheros interesantes (posible escalada)")
+        ui.section("Ficheros interesantes (descargados a la carpeta loot/)")
         for it in interesting:
             ui.bullet(f"{it['path']}  [{', '.join(it['tags'])}]")
 
-    recs = res.get("recommendations", [])
-    if recs:
-        ui.section("Recomendaciones")
-        for r in recs:
-            ui.recommend(r)
+    # Atar cabos: convertir userlist/passwd descargados en listas reutilizables.
+    users, passwords = parse_credential_lists(str(session.loot))
+    if users or passwords:
+        session.add_users(users)
+        session.add_passwords(passwords)
+        session.creds["files"] = [i["path"] for i in interesting]
+        ui.ok(f"Credenciales candidatas guardadas: {len(users)} usuario(s), {len(passwords)} contraseña(s).")
+        ui.recommend(
+            "Guardadas en loot/. Si hay un servicio con login (p. ej. web en 80), "
+            "prueba estas credenciales ahí — ReconTool te lo ofrecerá en el fuzz web."
+        )
+
+    for rec in res.get("recommendations", []):
+        ui.recommend(rec)
 
     if res.get("flags"):
         ui.section("Flag")
@@ -233,150 +241,124 @@ def _run_ftp(session: ReconSession, port: int) -> None:
             capture_all_evidence(scan_data)
         except Exception as exc:
             ui.warn(f"No se pudieron generar capturas: {exc}")
-    else:
-        ui.warn("Sin flag directa por FTP: usa las recomendaciones para escalar (john, ssh, etc.).")
+    elif not (users or passwords):
+        ui.warn("Sin flag ni credenciales directas por FTP.")
 
 
-def _run_http_enum(session: ReconSession, port: int) -> None:
-    """Enumeración web guiada. Si hay un fuzzer instalado, ofrece lanzarlo."""
-    target = session.scan_data.get("target", session.target)
+def _run_http(session: ReconSession, port: int, assume_yes: bool = False) -> None:
+    from app.services import http_enum
+
+    scan_data = session.scan_data
+    target = scan_data.get("target", session.target)
     scheme = "https" if port in (443, 8443) else "http"
     base = f"{scheme}://{target}" if port in (80, 443) else f"{scheme}://{target}:{port}"
 
     ui.section("Enumeración web")
-    ui.info("Pasos recomendados (manual):")
-    for cmd in (
-        f"whatweb {base}",
-        f"curl -s -I {base}",
-        f"ffuf -u {base}/FUZZ -w /usr/share/wordlists/dirb/common.txt",
-    ):
-        ui.bullet(cmd)
-        session.log_command(cmd, note="playbook http_enum")
-
-    fuzzer = next((f for f in FUZZERS if shutil.which(f)), None)
-    wordlist = next((w for w in WORDLISTS if Path(w).is_file()), None)
-
+    fuzzer = http_enum.find_fuzzer()
+    wordlist = http_enum.find_wordlist()
     if not fuzzer:
-        ui.warn("No veo ffuf/gobuster/feroxbuster instalados. Instala uno para fuzzing automático.")
-        return
-    if not wordlist:
-        ui.warn(f"{fuzzer} está instalado pero no encuentro un diccionario. Usa -w con tu wordlist.")
-        return
-
-    if not ui.ask_yes_no(f"¿Lanzo {fuzzer} contra {base} ahora?", default=False):
+        ui.warn("No hay ffuf/gobuster/feroxbuster instalados. Pasos manuales:")
+        for c in (f"whatweb {base}", f"gobuster dir -u {base} -w /usr/share/wordlists/dirb/common.txt"):
+            ui.bullet(c)
+            session.log_command(c, note="playbook http (manual)")
         return
 
-    if fuzzer == "ffuf":
-        cmd = [fuzzer, "-u", f"{base}/FUZZ", "-w", wordlist, "-mc", "200,204,301,302,307,401,403", "-t", "40"]
-    elif fuzzer == "feroxbuster":
-        cmd = [fuzzer, "-u", base, "-w", wordlist, "-t", "40", "-q"]
-    else:  # gobuster
-        cmd = [fuzzer, "dir", "-u", base, "-w", wordlist, "-t", "40", "-q"]
+    ui.info(f"Fuzzing {base} con {fuzzer} ({'wordlist: ' + wordlist if wordlist else 'sin diccionario'})...")
+    if not assume_yes and not ui.ask_yes_no(f"¿Lanzo {fuzzer} contra {base} ahora?", default=True):
+        return
 
-    session.log_command(" ".join(cmd), note="fuzzing web")
-    ui.info("Lanzando (máx 180 s)... Ctrl+C para cortar.")
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180, errors="replace")
-        out = (proc.stdout + proc.stderr).strip()
-        (session.loot / "fuzz.txt").write_text(out, encoding="utf-8")
-        print(out[:4000] or "(sin salida)")
-        ui.ok("Salida del fuzzing guardada en la sesión.")
-    except subprocess.TimeoutExpired:
-        ui.warn("El fuzzing superó el tiempo límite; córtalo manualmente si hace falta.")
-    except Exception as exc:
-        ui.err(f"Fuzzer falló: {exc}")
+    enum = http_enum.run_dir_enum(base, wordlist=wordlist)
+    if enum.get("command"):
+        session.log_command(enum["command"], note="fuzzing web")
+    if enum.get("raw"):
+        (session.loot / "fuzz.txt").write_text(enum["raw"][:200000], encoding="utf-8")
+    if enum.get("error"):
+        ui.warn(enum["error"])
+
+    hits = enum.get("hits", [])
+    if not hits:
+        ui.warn("El fuzzing no devolvió rutas. Prueba otro diccionario o herramienta.")
+        scan_data["web_enum"] = {"base": base, "tool": enum.get("tool"), "hits": [], "login": None}
+        return
+
+    ui.ok(f"{len(hits)} ruta(s) encontrada(s) con {enum.get('tool')}:")
+    for h in hits[:30]:
+        ui.bullet(f"/{h['path']}  (HTTP {h['status']}, {h['size']} bytes)")
+
+    interesting = http_enum.interesting_hits(hits)
+    login_paths = http_enum.find_login_paths(hits)
+    if interesting:
+        ui.section("Rutas interesantes")
+        for h in interesting:
+            ui.recommend(f"{base}/{h['path']}  (HTTP {h['status']}) — merece un vistazo")
+
+    web_record = {"base": base, "tool": enum.get("tool"), "hits": hits,
+                  "interesting": [h["path"] for h in interesting], "login": None, "login_result": None}
+
+    # Atar cabos: si hay login y tenemos credenciales del FTP, ofrecer probarlas.
+    if login_paths:
+        login = login_paths[0]
+        login_url = f"{base}/{login}"
+        ui.info(f"Posible login en {login_url}")
+        if session.has_creds():
+            do_it = assume_yes or ui.ask_yes_no(
+                f"Tengo {len(session.creds['users'])} usuario(s) y "
+                f"{len(session.creds['passwords'])} contraseña(s) del FTP. "
+                f"¿Las pruebo en {login_url}?", default=True)
+            if do_it:
+                session.log_command(
+                    f"# probar credenciales ({len(session.creds['users'])}x{len(session.creds['passwords'])}) en {login_url}",
+                    note="login web")
+                lr = http_enum.try_login(login_url, session.creds["users"], session.creds["passwords"])
+                web_record["login"] = login_url
+                web_record["login_result"] = lr
+                if lr.get("success"):
+                    ui.flag(f"Login OK en {login_url} → {lr['user']} : {lr['password']}  ({lr.get('evidence','')})")
+                    ui.recommend(f"Entra en {login_url} con esas credenciales para el panel/flag.")
+                elif lr.get("error"):
+                    ui.warn(f"No concluyente: {lr['error']} (campos: {lr.get('field_user')}/{lr.get('field_pass')})")
+                else:
+                    ui.warn(f"Ninguna combinación funcionó ({lr.get('attempts')} intentos). Pruébalo a mano en {login_url}.")
+        else:
+            web_record["login"] = login_url
+            ui.recommend(
+                f"Hay un login en {login_url} pero aún no tienes credenciales. "
+                "Saca una lista por FTP/otro servicio y vuelve a este paso."
+            )
+
+    scan_data["web_enum"] = web_record
 
 
 # ---------------------------------------------------------------------------
-# Informe
+# Informe y cierre
 # ---------------------------------------------------------------------------
 
-def _write_reports(session: ReconSession, report_dir: Path, auditor: str, want_docx: bool) -> list[Path]:
+def _finalize_prompt(flag_found: bool, assume_yes: bool = False) -> bool:
+    if assume_yes:
+        return True
+    return ui.ask_yes_no("¿Finalizar y generar el informe?", default=flag_found)
+
+
+def _write_reports(session: ReconSession, auditor: str, want_docx: bool) -> list[Path]:
     from app.services.report_content import safe_target
 
     scan_data = session.scan_data
-    report_dir.mkdir(parents=True, exist_ok=True)
     tag = f"{safe_target(scan_data.get('target', session.target))}_{datetime.now():%Y%m%d_%H%M}"
     written: list[Path] = []
 
-    # Transcripción (siempre): comandos usados + info conseguida.
-    md_path = report_dir / f"transcripcion_{tag}.md"
+    md_path = session.dir / f"transcripcion_{tag}.md"
     md_path.write_text(build_transcript(session, auditor=auditor), encoding="utf-8")
     written.append(md_path)
 
     if want_docx:
         try:
             from app.services.report_generator import generate_audit_report
-
-            docx_bytes = generate_audit_report(scan_data, auditor=auditor)
-            docx_path = report_dir / f"informe_pentest_{tag}.docx"
-            docx_path.write_bytes(docx_bytes)
+            docx_path = session.dir / f"informe_pentest_{tag}.docx"
+            docx_path.write_bytes(generate_audit_report(scan_data, auditor=auditor))
             written.append(docx_path)
         except Exception as exc:
             ui.warn(f"No se pudo generar el .docx (queda la transcripción .md): {exc}")
-
-    # Si corremos como sudo, devolver la propiedad de los informes al usuario real.
-    _chown_to_invoker(written)
     return written
-
-
-def _chown_to_invoker(paths: list[Path]) -> None:
-    uid = os.environ.get("SUDO_UID")
-    gid = os.environ.get("SUDO_GID")
-    if not uid:
-        return
-    for p in paths:
-        try:
-            os.chown(p, int(uid), int(gid or uid))
-        except OSError:
-            pass
-
-
-def _invoking_user_home() -> Path:
-    """Home del usuario real (no root) cuando se ejecuta con sudo."""
-    sudo_user = os.environ.get("SUDO_USER")
-    if sudo_user:
-        try:
-            import pwd as _pwd
-
-            return Path(_pwd.getpwnam(sudo_user).pw_dir)
-        except Exception:
-            return Path(f"/home/{sudo_user}")
-    return Path(os.path.expanduser("~"))
-
-
-def _default_report_dir() -> Path:
-    """Por defecto, el Escritorio del usuario que invoca (Kali)."""
-    home = _invoking_user_home()
-    for name in ("Desktop", "Escritorio"):
-        cand = home / name
-        if cand.is_dir():
-            return cand
-    # Si no hay Escritorio, respetar la carpeta de invocación o crear Desktop.
-    base = os.environ.get("RECON_INVOKE_DIR")
-    if base and Path(base).is_dir():
-        return Path(base)
-    return home / "Desktop"
-
-
-def _port_for(scan_data: dict, vector_id: str, default: int) -> int:
-    for v in (scan_data.get("attack_plan") or {}).get("vectors", []):
-        if v.get("id") == vector_id and v.get("port"):
-            return int(v["port"])
-    return default
-
-
-def _finalize_prompt(flag_found: bool, assume_yes: bool = False) -> bool:
-    """El 'botón' de cierre: una sola pregunta y/n.
-
-    - s (sí)  -> True  -> se cierra y se genera el informe.
-    - n (no)  -> False -> se vuelve a mostrar el menú de vectores a seguir.
-
-    Si se capturó flag, el valor por defecto es 'sí'; si no, 'no' (para seguir).
-    """
-    if assume_yes:
-        return True
-    return ui.ask_yes_no("¿Finalizar y generar el informe?", default=flag_found)
 
 
 # ---------------------------------------------------------------------------
@@ -394,69 +376,99 @@ def run(
     ui.banner()
     ui.warn("Úsalo solo contra objetivos para los que tengas permiso explícito (labs, VMs propias).")
 
-    report_dir = report_dir or _default_report_dir()
+    base_dir = Path(report_dir) if report_dir else _invoking_base_dir()
+    session = ReconSession(target, base_dir)
+    ui.section(f"Objetivo: {target}")
+    ui.ok(f"Carpeta de trabajo: {session.dir}")
+    ui.info("Lanzando reconocimiento pasivo (nmap + CVE + OSINT)...")
 
-    with ReconSession(target) as session:
-        ui.section(f"Objetivo: {target}")
-        ui.info("Lanzando reconocimiento pasivo (nmap + CVE + OSINT)...")
+    try:
+        from app.services.scan_pipeline import run_passive_recon
+        scan_data = run_passive_recon(target)
+    except Exception as exc:
+        ui.err(f"No se pudo completar el recon: {exc}")
+        return 1
 
-        try:
-            from app.core.config import NMAP_ARGUMENTS
-            from app.services.scan_pipeline import run_passive_recon
+    session.scan_data = scan_data
+    if scan_data.get("error"):
+        ui.err(f"nmap devolvió error: {scan_data['error']}")
+        _write_scan_files(session)
+        _chown_tree_to_invoker(session.dir)
+        return 1
 
-            session.log_command(f"nmap {NMAP_ARGUMENTS} {target}", note="recon inicial")
-            scan_data = run_passive_recon(target)
-        except Exception as exc:
-            ui.err(f"No se pudo completar el recon: {exc}")
-            return 1
+    _write_scan_files(session)
+    ui.ok(f"Scan guardado en {session.dir / 'scan.txt'}")
+    _show_findings(scan_data)
 
-        session.scan_data = scan_data
-        if scan_data.get("error"):
-            ui.err(f"nmap devolvió error: {scan_data['error']}")
-            return 1
-
-        _show_findings(scan_data)
-
-        if not do_exploit:
-            ui.info("Modo solo-recon: no se ejecuta ningún vector.")
+    if not do_exploit:
+        ui.info("Modo solo-recon: no se ejecuta ningún vector.")
+    else:
+        options = _build_options(scan_data)
+        if not options:
+            ui.warn("No hay vector automático conocido para estos puertos.")
         else:
-            options = _build_options(scan_data)
-            if not options:
-                ui.warn("No hay vector automático conocido para estos puertos.")
-            else:
-                ids = {o["id"] for o in options}
-                ui.recommend(_recommendation_text(ids))
+            ui.recommend(_recommendation_text({o["id"] for o in options}))
+            tried: set[str] = set()
+            while True:
+                remaining = [o for o in options if o["id"] not in tried]
+                if not remaining:
+                    ui.info("No quedan vectores conocidos por probar.")
+                    break
+                choice = ui.choose("¿Qué vector quieres probar?", remaining, assume_yes=assume_yes)
+                if choice is None:
+                    break
+                tried.add(choice["id"])
 
-                tried: set[str] = set()
-                while True:
-                    remaining = [o for o in options if o["id"] not in tried]
-                    if not remaining:
-                        ui.info("No quedan vectores conocidos por probar.")
-                        break
-                    choice = ui.choose("¿Qué vector quieres probar?", remaining, assume_yes=assume_yes)
-                    if choice is None:
-                        break
-                    tried.add(choice["id"])
+                if choice["id"] == "ftp_anonymous":
+                    _run_ftp(session, _port_for(scan_data, "ftp_anonymous", 21))
+                elif choice["id"] == "http_enum":
+                    _run_http(session, _port_for(scan_data, "http_enum", 80), assume_yes=assume_yes)
+                else:
+                    _run_known_vector(session, choice["id"])
 
-                    if choice["id"] == "ftp_anonymous":
-                        _run_ftp(session, _port_for(scan_data, "ftp_anonymous", 21))
-                    elif choice["id"] == "http_enum":
-                        _run_http_enum(session, _port_for(scan_data, "http_enum", 80))
-                    else:
-                        _run_known_vector(session, choice["id"])
+                got_flag = scan_data.get("exploitation", {}).get("flag_captured", False)
+                if _finalize_prompt(got_flag, assume_yes=assume_yes):
+                    break
 
-                    got_flag = scan_data.get("exploitation", {}).get("flag_captured", False)
-                    if _finalize_prompt(got_flag, assume_yes=assume_yes):
-                        break
+    ui.section("Informe")
+    written = _write_reports(session, auditor, want_docx)
+    for p in written:
+        ui.ok(f"Guardado: {p}")
+    _chown_tree_to_invoker(session.dir)
 
-        # Informe (sobrevive al borrado de la sesión).
-        ui.section("Informe")
-        written = _write_reports(session, report_dir, auditor, want_docx)
-        for p in written:
-            ui.ok(f"Guardado: {p}")
-
-        ui.section("Cierre de sesión")
-        ui.info("Borrón y cuenta nueva: elimino todos los datos temporales de esta sesión.")
-
-    ui.ok("Sesión cerrada. Volver a escanear la misma IP empezará de cero.")
+    ui.section("Fin")
+    ui.ok(f"Todo el trabajo queda en: {session.dir}")
+    ui.info("La carpeta se conserva (scan, loot, informes) por si quieres seguir a mano.")
     return 0
+
+
+def _run_known_vector(session: ReconSession, vector_id: str) -> None:
+    """Telnet / SMB: reutiliza el motor de explotación del backend."""
+    from app.services.exploit_runner import run_exploitation_checks
+    from app.services.playbook_advisor import build_playbook_analysis
+    from app.services.step_capture import capture_all_evidence
+
+    scan_data = session.scan_data
+    target = scan_data.get("target", session.target)
+    operational = {"vector_id": vector_id, "source": "user",
+                   "reason": "Vector elegido por el usuario en el CLI", "confidence": "high"}
+
+    ui.info(f"Ejecutando módulo: {VECTOR_LABELS.get(vector_id, vector_id)}")
+    result = run_exploitation_checks(target, scan_data, vector_id=vector_id, operational=operational)
+    scan_data["exploitation"] = result
+    scan_data["ai_analysis"] = build_playbook_analysis(target, scan_data, result)
+    scan_data["phase"] = "active"
+    for cmd in result.get("playbook_steps", []):
+        session.log_command(cmd, note="playbook " + vector_id)
+    for attempt in result.get("attempts", []):
+        for step in attempt.get("steps", []):
+            (ui.err if step.get("status") == "error" else ui.bullet)(f"[{step.get('action')}] {step.get('detail')}")
+    if result.get("flag_captured"):
+        for f in result.get("flags", []):
+            ui.flag(f"{f['filename']}: {f['content']}")
+        try:
+            capture_all_evidence(scan_data)
+        except Exception as exc:
+            ui.warn(f"No se pudieron generar capturas: {exc}")
+    else:
+        ui.warn(result.get("message", "Sin flag en este vector."))

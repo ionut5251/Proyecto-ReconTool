@@ -16,7 +16,7 @@ from pathlib import Path
 
 from app.cli import ui
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -27,7 +27,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("target", nargs="?", help="IP o hostname del objetivo (lab autorizado)")
     p.add_argument("-y", "--yes", action="store_true", help="No interactivo: usa la recomendación automática")
     p.add_argument("--no-exploit", action="store_true", help="Solo reconocimiento, sin ejecutar vectores")
-    p.add_argument("--report-dir", type=Path, default=None, help="Carpeta donde dejar los informes")
+    p.add_argument("--report-dir", type=Path, default=None,
+                   help="Carpeta base donde crear la carpeta por IP (por defecto, desde donde lanzas recon)")
     p.add_argument("--auditor", default="", help="Nombre del auditor para el informe")
     p.add_argument("--no-docx", action="store_true", help="No generar .docx (solo transcripción .md)")
     p.add_argument("--version", action="version", version=f"ReconTool CLI {__version__}")

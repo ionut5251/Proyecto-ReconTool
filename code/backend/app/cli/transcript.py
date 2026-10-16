@@ -66,6 +66,28 @@ def build_transcript(session, auditor: str = "") -> str:
         lines.append("```")
         lines.append("")
 
+    web = scan_data.get("web_enum")
+    if web:
+        lines.append("## Enumeración web")
+        lines.append("")
+        lines.append(f"- **Base:** {web.get('base')}  ·  **Herramienta:** {web.get('tool')}")
+        hits = web.get("hits") or []
+        if hits:
+            lines.append(f"- **Rutas encontradas ({len(hits)}):**")
+            lines.append("")
+            lines.append("```")
+            for h in hits[:60]:
+                lines.append(f"/{h['path']}  (HTTP {h['status']}, {h['size']} bytes)")
+            lines.append("```")
+        if web.get("interesting"):
+            lines.append(f"- **Interesantes:** {', '.join('/' + p for p in web['interesting'])}")
+        lr = web.get("login_result")
+        if web.get("login"):
+            lines.append(f"- **Login:** {web.get('login')}")
+        if lr and lr.get("success"):
+            lines.append(f"- **Credenciales válidas:** `{lr.get('user')} : {lr.get('password')}` ({lr.get('evidence','')})")
+        lines.append("")
+
     flags = scan_data.get("exploitation", {}).get("flags") or []
     if flags:
         lines.append("## Flags obtenidas")

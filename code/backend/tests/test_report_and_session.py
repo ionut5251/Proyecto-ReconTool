@@ -1,4 +1,7 @@
-"""Pruebas de la sesión efímera y de la generación de informe/transcripción."""
+"""Pruebas de la sesión (carpeta por IP) y del informe/transcripción."""
+
+import tempfile
+from pathlib import Path
 
 from app.cli.session import ReconSession
 from app.cli.transcript import build_transcript
@@ -33,38 +36,39 @@ def _scan_with_flag():
     return scan
 
 
-def test_session_creates_and_cleans_up():
-    s = ReconSession("10.10.10.5")
-    d = s.dir
-    assert d.is_dir() and s.screenshots.is_dir() and s.loot.is_dir()
-    s.cleanup()
-    assert not d.exists()
+def test_session_creates_persistent_per_ip_folder():
+    with tempfile.TemporaryDirectory() as base:
+        s = ReconSession("10.10.10.5", base)
+        assert s.dir == Path(base) / "10.10.10.5"
+        assert s.dir.is_dir() and s.loot.is_dir() and s.screenshots.is_dir()
+        # context manager NO borra la carpeta
+        with s:
+            pass
+        assert s.dir.exists(), "la carpeta por IP debe conservarse"
 
 
 def test_session_redirects_screenshots_dir():
     import app.services.step_capture as sc
-    s = ReconSession("10.10.10.5")
-    try:
+    with tempfile.TemporaryDirectory() as base:
+        s = ReconSession("10.10.10.5", base)
         assert sc.SCREENSHOTS_DIR == s.screenshots
-    finally:
-        s.cleanup()
 
 
-def test_transcript_contains_commands_and_flag():
-    s = ReconSession("10.10.10.5")
-    try:
+def test_session_credentials_store():
+    with tempfile.TemporaryDirectory() as base:
+        s = ReconSession("10.10.10.5", base)
+        s.add_users(["admin", "admin", "root"])
+        s.add_passwords(["x", "y"])
+        assert s.creds["users"] == ["admin", "root"]
+        assert s.has_creds()
+
+
+def test_transcript_and_docx():
+    with tempfile.TemporaryDirectory() as base:
+        s = ReconSession("10.10.10.5", base)
         s.scan_data = _scan_with_flag()
         s.log_command("ftp 10.10.10.5", note="ftp")
         md = build_transcript(s, auditor="Constan")
-        assert "HTB{demo}" in md
-        assert "ftp 10.10.10.5" in md
-        assert "Comandos ejecutados" in md
-    finally:
-        s.cleanup()
-
-
-def test_docx_report_is_generated():
-    scan = _scan_with_flag()
-    data = generate_audit_report(scan, auditor="Constan")
-    assert isinstance(data, (bytes, bytearray))
-    assert len(data) > 5000
+        assert "HTB{demo}" in md and "ftp 10.10.10.5" in md
+        data = generate_audit_report(s.scan_data, auditor="Constan")
+        assert isinstance(data, (bytes, bytearray)) and len(data) > 5000
