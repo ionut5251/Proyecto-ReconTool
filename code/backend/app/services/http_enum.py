@@ -56,7 +56,11 @@ _RE_GOBUSTER = re.compile(r"^(/\S*)\s+\(Status:\s*(\d+)\)(?:\s*\[Size:\s*(\d+)\]
 _RE_FEROX = re.compile(r"^\s*(\d{3})\s+\S+\s+\d+\w?\s+\S+\s+(\S+)", re.M)
 
 
+_ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
 def _parse_hits(tool: str, output: str, base_url: str) -> list[dict]:
+    output = _ANSI.sub("", output)  # ffuf colorea la salida; fuera códigos ANSI
     hits: list[dict] = []
     if tool == "ffuf":
         for m in _RE_FFUF.finditer(output):
@@ -165,20 +169,50 @@ def _guess_fields(html: str) -> tuple[str, str]:
     return user_field, pass_field
 
 
-def try_login(login_url: str, users: list[str], passwords: list[str],
-              max_attempts: int = 150) -> dict[str, Any]:
-    """Intenta combinaciones usuario/contraseña contra un formulario de login.
+# Combos típicos de respaldo si no hay (o no funcionan) las credenciales halladas.
+DEFAULT_PAIRS = [
+    ("admin", "admin"), ("admin", "password"), ("admin", "admin123"),
+    ("administrator", "password"), ("root", "root"), ("root", "toor"),
+    ("test", "test"), ("guest", "guest"), ("user", "user"),
+]
 
-    Heurística de éxito: redirección fuera del login, aparición de marcadores de
-    sesión iniciada, o respuesta claramente distinta a la de fallo. Best-effort.
+
+def _clean(seq: list[str]) -> list[str]:
+    out = []
+    for s in seq or []:
+        s = _ANSI.sub("", str(s)).strip()
+        if s and len(s) < 100 and s not in out:
+            out.append(s)
+    return out
+
+
+def try_login(login_url: str, users: list[str], passwords: list[str],
+              extra_pairs: Optional[list] = None, use_defaults: bool = True,
+              max_attempts: int = 300) -> dict[str, Any]:
+    """Prueba combinaciones usuario/contraseña contra un formulario de login.
+
+    Orden: primero las credenciales halladas (producto usuarios×contraseñas),
+    luego combos típicos (admin/admin...). Heurística de éxito: redirección fuera
+    del login, marcadores de sesión iniciada, o respuesta muy distinta a la de
+    fallo. Best-effort.
     """
     result: dict[str, Any] = {"success": False, "user": None, "password": None,
                               "attempts": 0, "field_user": None, "field_pass": None,
                               "evidence": None, "error": None}
-    users = users or ["admin"]
-    passwords = passwords or []
-    if not passwords:
-        result["error"] = "No hay contraseñas que probar."
+    users = _clean(users)
+    passwords = _clean(passwords)
+
+    pairs: list[tuple[str, str]] = list(extra_pairs or [])
+    for u in users:
+        for p in passwords:
+            pairs.append((u, p))
+    if use_defaults:
+        pairs.extend(DEFAULT_PAIRS)
+    # dedupe conservando orden
+    seen: set[tuple[str, str]] = set()
+    pairs = [p for p in pairs if not (p in seen or seen.add(p))]
+    if not pairs:
+        result["error"] = "No hay credenciales que probar."
         return result
 
     try:
@@ -188,34 +222,26 @@ def try_login(login_url: str, users: list[str], passwords: list[str],
             result["field_user"], result["field_pass"] = u_field, p_field
             baseline_len = len(base.text)
 
-            attempts = 0
-            for user in users:
-                for pwd in passwords:
-                    if attempts >= max_attempts:
-                        result["error"] = f"Límite de {max_attempts} intentos alcanzado."
-                        return result
-                    attempts += 1
-                    try:
-                        resp = client.post(login_url, data={u_field: user, p_field: pwd})
-                    except Exception:
-                        continue
-                    body = resp.text.lower()
-                    redirected = resp.status_code in (301, 302, 303, 307)
-                    loc = resp.headers.get("location", "").lower()
-                    looks_fail = any(m in body for m in FAIL_MARKERS)
-                    looks_ok = any(m in body for m in SUCCESS_MARKERS)
-                    redirect_ok = redirected and "login" not in loc and loc not in ("", "/")
-                    big_change = abs(len(resp.text) - baseline_len) > 120 and not looks_fail
+            for user, pwd in pairs[:max_attempts]:
+                result["attempts"] += 1
+                try:
+                    resp = client.post(login_url, data={u_field: user, p_field: pwd})
+                except Exception:
+                    continue
+                body = resp.text.lower()
+                redirected = resp.status_code in (301, 302, 303, 307)
+                loc = resp.headers.get("location", "").lower()
+                looks_fail = any(m in body for m in FAIL_MARKERS)
+                looks_ok = any(m in body for m in SUCCESS_MARKERS)
+                redirect_ok = redirected and "login" not in loc and loc not in ("", "/")
+                big_change = abs(len(resp.text) - baseline_len) > 120 and not looks_fail
 
-                    if looks_ok or redirect_ok or (big_change and not looks_fail):
-                        result.update({
-                            "success": True, "user": user, "password": pwd,
-                            "attempts": attempts,
-                            "evidence": f"HTTP {resp.status_code}"
-                                        + (f" → {loc}" if loc else ""),
-                        })
-                        return result
-            result["attempts"] = attempts
+                if looks_ok or redirect_ok or (big_change and not looks_fail):
+                    result.update({
+                        "success": True, "user": user, "password": pwd,
+                        "evidence": f"HTTP {resp.status_code}" + (f" → {loc}" if loc else ""),
+                    })
+                    return result
     except Exception as exc:
         result["error"] = str(exc)
     return result

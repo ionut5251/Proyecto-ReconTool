@@ -198,7 +198,9 @@ def _build_options(scan_data: dict) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def _run_ftp(session: ReconSession, port: int) -> None:
-    from app.services.ftp_probe import enumerate_ftp_anonymous, manual_ftp_playbook, parse_credential_lists
+    from app.services.ftp_probe import (
+        enumerate_ftp_anonymous, manual_ftp_playbook, parse_credential_lists, try_ftp_login,
+    )
     from app.services.playbook_advisor import build_playbook_analysis
     from app.services.step_capture import capture_all_evidence
 
@@ -246,14 +248,28 @@ def _run_ftp(session: ReconSession, port: int) -> None:
         session.add_users(users)
         session.add_passwords(passwords)
         session.creds["files"] = [i["path"] for i in interesting]
-        ui.ok(f"Credenciales candidatas guardadas: {len(users)} usuario(s), {len(passwords)} contraseña(s).")
-        ui.recommend(
-            "Guardadas en loot/. Si hay un servicio con login (p. ej. web en 80), "
-            "prueba estas credenciales ahí — ReconTool te lo ofrecerá en el fuzz web."
-        )
+        ui.ok(f"Credenciales candidatas guardadas en loot/: {len(users)} usuario(s), {len(passwords)} contraseña(s).")
+        ui.info("Voy a usar esas credenciales contra el propio servicio FTP...")
+        session.log_command(
+            f"# probar {len(users)}x{len(passwords)} credenciales (FTP autenticado) en {target}",
+            note="ftp login")
+        fl = try_ftp_login(target, users, passwords, port=port)
+        if fl.get("success"):
+            ui.flag(f"Acceso FTP autenticado: {fl['user']} : {fl['password']}")
+            if fl.get("files"):
+                ui.info("Contenido de esa cuenta FTP:")
+                for fn in fl["files"][:40]:
+                    ui.bullet(fn)
+            ui.recommend("Esas credenciales abren el FTP; pruébalas también en SSH/web si existen.")
+        else:
+            msg = fl.get("error") or "ninguna combinación válida"
+            ui.warn(f"Ninguna combinación encontrada para el FTP ({msg}).")
+            ui.recommend("Guardadas: si hay web con login (puerto 80), las probaré allí en el paso de Fuzz web.")
 
+    # Recomendaciones útiles (hash/clave); omito la genérica "revísalos a mano".
     for rec in res.get("recommendations", []):
-        ui.recommend(rec)
+        if "Revísalos a mano" not in rec:
+            ui.recommend(rec)
 
     if res.get("flags"):
         ui.section("Flag")
@@ -285,10 +301,7 @@ def _run_http(session: ReconSession, port: int, assume_yes: bool = False) -> Non
             session.log_command(c, note="playbook http (manual)")
         return
 
-    ui.info(f"Fuzzing {base} con {fuzzer} ({'wordlist: ' + wordlist if wordlist else 'sin diccionario'})...")
-    if not assume_yes and not ui.ask_yes_no(f"¿Lanzo {fuzzer} contra {base} ahora?", default=True):
-        return
-
+    ui.info(f"Lanzando {fuzzer} contra {base} (con extensiones .php,.txt,.html)...")
     enum = http_enum.run_dir_enum(base, wordlist=wordlist)
     if enum.get("command"):
         session.log_command(enum["command"], note="fuzzing web")
@@ -312,41 +325,36 @@ def _run_http(session: ReconSession, port: int, assume_yes: bool = False) -> Non
     if interesting:
         ui.section("Rutas interesantes")
         for h in interesting:
-            ui.recommend(f"{base}/{h['path']}  (HTTP {h['status']}) — merece un vistazo")
+            ui.bullet(f"/{h['path']}  (HTTP {h['status']})")
 
     web_record = {"base": base, "tool": enum.get("tool"), "hits": hits,
                   "interesting": [h["path"] for h in interesting], "login": None, "login_result": None}
 
-    # Atar cabos: si hay login y tenemos credenciales del FTP, ofrecer probarlas.
+    # Atar cabos: si hay login, probar las credenciales del FTP (+ típicas).
     if login_paths:
-        login = login_paths[0]
-        login_url = f"{base}/{login}"
-        ui.info(f"Posible login en {login_url}")
+        login_url = f"{base}/{login_paths[0]}"
+        ui.ok(f"Login encontrado: {login_url}")
+        n_u, n_p = len(session.creds["users"]), len(session.creds["passwords"])
         if session.has_creds():
-            do_it = assume_yes or ui.ask_yes_no(
-                f"Tengo {len(session.creds['users'])} usuario(s) y "
-                f"{len(session.creds['passwords'])} contraseña(s) del FTP. "
-                f"¿Las pruebo en {login_url}?", default=True)
-            if do_it:
-                session.log_command(
-                    f"# probar credenciales ({len(session.creds['users'])}x{len(session.creds['passwords'])}) en {login_url}",
-                    note="login web")
-                lr = http_enum.try_login(login_url, session.creds["users"], session.creds["passwords"])
-                web_record["login"] = login_url
-                web_record["login_result"] = lr
-                if lr.get("success"):
-                    ui.flag(f"Login OK en {login_url} → {lr['user']} : {lr['password']}  ({lr.get('evidence','')})")
-                    ui.recommend(f"Entra en {login_url} con esas credenciales para el panel/flag.")
-                elif lr.get("error"):
-                    ui.warn(f"No concluyente: {lr['error']} (campos: {lr.get('field_user')}/{lr.get('field_pass')})")
-                else:
-                    ui.warn(f"Ninguna combinación funcionó ({lr.get('attempts')} intentos). Pruébalo a mano en {login_url}.")
+            prompt = (f"¿Probamos una conexión al login con las credenciales encontradas "
+                      f"({n_u}×{n_p}) y algunas típicas?")
+        else:
+            prompt = "¿Probamos una conexión al login con credenciales típicas (admin/admin, etc.)?"
+
+        if assume_yes or ui.ask_yes_no(prompt, default=True):
+            session.log_command(f"# probar credenciales en {login_url}", note="login web")
+            lr = http_enum.try_login(login_url, session.creds["users"], session.creds["passwords"])
+            web_record["login"] = login_url
+            web_record["login_result"] = lr
+            if lr.get("success"):
+                ui.flag(f"Conexión al login OK en {login_url} → {lr['user']} : {lr['password']}  ({lr.get('evidence', '')})")
+                ui.recommend(f"Entra en {login_url} con esas credenciales para el panel/flag.")
+            elif lr.get("error"):
+                ui.warn(f"No concluyente: {lr['error']} (campos detectados: {lr.get('field_user')}/{lr.get('field_pass')})")
+            else:
+                ui.warn(f"Ninguna combinación funcionó ({lr.get('attempts')} intentos). Pruébalo a mano en {login_url}.")
         else:
             web_record["login"] = login_url
-            ui.recommend(
-                f"Hay un login en {login_url} pero aún no tienes credenciales. "
-                "Saca una lista por FTP/otro servicio y vuelve a este paso."
-            )
 
     scan_data["web_enum"] = web_record
 
@@ -355,27 +363,23 @@ def _run_http(session: ReconSession, port: int, assume_yes: bool = False) -> Non
 # Informe y cierre
 # ---------------------------------------------------------------------------
 
-def _finalize_prompt(flag_found: bool, assume_yes: bool = False) -> bool:
-    if assume_yes:
-        return True
-    return ui.ask_yes_no("¿Finalizar y generar el informe?", default=flag_found)
-
-
 def _write_reports(session: ReconSession, auditor: str, want_docx: bool) -> list[Path]:
     from app.services.report_content import safe_target
 
     scan_data = session.scan_data
+    out_dir = session.dir / "InfoAuditoria"
+    out_dir.mkdir(parents=True, exist_ok=True)
     tag = f"{safe_target(scan_data.get('target', session.target))}_{datetime.now():%Y%m%d_%H%M}"
     written: list[Path] = []
 
-    md_path = session.dir / f"transcripcion_{tag}.md"
+    md_path = out_dir / f"transcripcion_{tag}.md"
     md_path.write_text(build_transcript(session, auditor=auditor), encoding="utf-8")
     written.append(md_path)
 
     if want_docx:
         try:
             from app.services.report_generator import generate_audit_report
-            docx_path = session.dir / f"informe_pentest_{tag}.docx"
+            docx_path = out_dir / f"informe_pentest_{tag}.docx"
             docx_path.write_bytes(generate_audit_report(scan_data, auditor=auditor))
             written.append(docx_path)
         except Exception as exc:
@@ -448,8 +452,17 @@ def run(
                 else:
                     _run_known_vector(session, choice["id"])
 
+                if assume_yes:
+                    break
                 got_flag = scan_data.get("exploitation", {}).get("flag_captured", False)
-                if _finalize_prompt(got_flag, assume_yes=assume_yes):
+                remaining_after = [o for o in options if o["id"] not in tried]
+                if got_flag:
+                    if ui.ask_yes_no("¿Finalizar y generar el informe?", default=True):
+                        break
+                elif not remaining_after:
+                    ui.info("No quedan más vectores por probar.")
+                    break
+                elif not ui.ask_yes_no("¿Seguimos con el siguiente vector?", default=True):
                     break
 
     ui.section("Informe")

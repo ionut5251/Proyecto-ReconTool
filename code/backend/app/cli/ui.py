@@ -110,23 +110,19 @@ def choose(question: str, options: list[dict], assume_yes: bool = False) -> dict
         return chosen
 
     # Línea de elección con el nombre de cada opción, no solo el número.
+    # Sin Enter por defecto: el usuario elige un número a propósito (evita misclicks).
     def _name(opt: dict) -> str:
         return opt.get("short") or opt["label"]
 
     parts = "  ·  ".join(f"[{i + 1}] {_name(opt)}" for i, opt in enumerate(options))
-    default_name = _name(options[default_idx])
 
     while True:
         try:
-            raw = input(
-                f"   {parts}  ·  [0] saltar   {C.DIM}(Enter = {default_name}){C.RESET}: "
-            ).strip()
+            raw = input(f"   {parts}  ·  [0] saltar: ").strip()
         except EOFError:
-            return options[default_idx]
-        if not raw:
-            return options[default_idx]
+            return None
         if raw == "0":
             return None
         if raw.isdigit() and 1 <= int(raw) <= len(options):
             return options[int(raw) - 1]
-        warn(f"Opción no válida. Escribe un número del 1 al {len(options)}, o 0 para saltar.")
+        warn(f"Elige un número del 1 al {len(options)} (o 0 para saltar).")

@@ -59,3 +59,20 @@ def test_guess_fields():
     html = '<form><input name="username"><input type="password" name="password"></form>'
     u, p = http_enum._guess_fields(html)
     assert u == "username" and p == "password"
+
+
+def test_parse_hits_strips_ansi():
+    # ffuf colorea la salida; el path NO debe llevar códigos ANSI (bug del \x1b en la URL)
+    out = "\x1b[32mlogin.php\x1b[0m   [Status: 200, Size: 1577]\n"
+    hits = http_enum._parse_hits("ffuf", out, "http://10.129.30.17")
+    assert hits[0]["path"] == "login.php"
+
+
+def test_clean_removes_ansi_and_blanks():
+    assert http_enum._clean(["\x1b[31madmin\x1b[0m", " root ", "", "a" * 200]) == ["admin", "root"]
+
+
+def test_try_ftp_login_without_creds():
+    from app.services.ftp_probe import try_ftp_login
+    r = try_ftp_login("127.0.0.1", [], [])
+    assert r["success"] is False and r["error"]
