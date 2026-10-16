@@ -8,20 +8,11 @@ ReconTool escanea un objetivo autorizado, correlaciona vulnerabilidades, te **gu
 
 ---
 
-## Fases
-
-- **Fase 1 — web (entregada):** backend FastAPI + UI estilo Shodan en dos fases (pasiva/activa) + informe Word. Se arranca con `./recontool`.
-- **Fase 2 — CLI tipo ADScan (en curso):** ReconTool se **instala en el equipo** y se usa desde terminal, con una **carpeta de trabajo por IP**. Es lo que documenta el resto de este README.
-
----
-
 ## Requisitos previos
 
-- **Sistema:** Linux basado en Debian (probado en **Kali**; vale Debian/Ubuntu).
+- **Sistema:** Linux basado en Debian (probado en **Kali**; Debian/Ubuntu).
 - **Permisos:** acceso **sudo/root** (nmap necesita privilegios; el instalador copia a `/opt`).
 - **Base:** `git` y conexión a internet para instalar. El resto de dependencias (`nmap`, `smbclient`, Python, fuentes…) las instala `install.sh`.
-- **Opcional (fuzzing web):** un fuzzer (`ffuf`, `gobuster` o `feroxbuster`) y un diccionario (p. ej. `dirb/common.txt`), ya incluidos en Kali.
-- **Opcional (IA/CVE):** clave de OpenAI o un Ollama local y clave de NVD (ver `code/backend/.env.example`). Sin ellas funciona con heurística.
 - **Entorno de pruebas:** VPN de HackTheBox o una VM de laboratorio autorizada.
 
 ---
@@ -92,10 +83,7 @@ cp code/backend/.env.example code/backend/.env
 
 ## Datos de acceso de prueba
 
-ReconTool **no tiene cuentas ni login**: es una herramienta local **sin autenticación** ni base de datos de usuarios, así que no hay credenciales de acceso al propio programa. Para probarlo se usa un **objetivo de laboratorio autorizado**, por ejemplo máquinas de HackTheBox fáciles:
-
-- **Fawn** (FTP anónimo) → `recon <IP>` → vector FTP.
-- **Crocodile** (FTP + web) → `recon <IP>` → FTP para sacar credenciales y luego Fuzz web.
+ReconTool **no tiene cuentas ni login**: es una herramienta local **sin autenticación** ni base de datos de usuarios, así que no hay credenciales de acceso al propio programa. Para probarlo se usa un **objetivo de laboratorio autorizado**, por ejemplo máquinas de HackTheBox.
 
 Las únicas "credenciales" de ejemplo son los valores ficticios de `code/backend/.env.example` (API keys de IA/NVD), que no dan acceso a nada real.
 
