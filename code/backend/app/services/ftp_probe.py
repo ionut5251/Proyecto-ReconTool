@@ -280,8 +280,9 @@ def build_ftp_recommendations(findings: list[dict], interesting: list[str], host
             )
     if interesting and not recs:
         recs.append(
-            "Revisa manualmente los ficheros marcados como interesantes: pueden "
-            "contener pistas, rutas o credenciales para escalar."
+            "Revísalos a mano: abre otra terminal y conéctate con "
+            f"`ftp {host}` (usuario anonymous, contraseña vacía); descarga con "
+            "`get <fichero>` y ábrelos buscando pistas, rutas o credenciales."
         )
     return recs
 

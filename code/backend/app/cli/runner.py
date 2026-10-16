@@ -26,6 +26,14 @@ VECTOR_LABELS = {
     "http_enum": "Fuzzing / enumeración web",
 }
 
+# Nombre corto para la línea de elección del menú.
+VECTOR_SHORT = {
+    "ftp_anonymous": "FTP anónimo",
+    "telnet_root_blank": "Telnet root",
+    "smb_anonymous": "SMB anónimo",
+    "http_enum": "Fuzz web",
+}
+
 FUZZERS = ("ffuf", "feroxbuster", "gobuster")
 WORDLISTS = (
     "/usr/share/wordlists/dirb/common.txt",
@@ -111,6 +119,7 @@ def _build_options(scan_data: dict) -> list[dict]:
             {
                 "id": vid,
                 "label": VECTOR_LABELS.get(vid, v.get("title", vid)),
+                "short": VECTOR_SHORT.get(vid, VECTOR_LABELS.get(vid, vid)),
                 "detail": v.get("summary", ""),
                 "recommended": vid == primary_id,
             }
@@ -358,15 +367,16 @@ def _port_for(scan_data: dict, vector_id: str, default: int) -> int:
 
 
 def _finalize_prompt(flag_found: bool, assume_yes: bool = False) -> bool:
-    """Devuelve True si hay que finalizar (generar informe). El 'botón' de cierre."""
+    """El 'botón' de cierre: una sola pregunta y/n.
+
+    - s (sí)  -> True  -> se cierra y se genera el informe.
+    - n (no)  -> False -> se vuelve a mostrar el menú de vectores a seguir.
+
+    Si se capturó flag, el valor por defecto es 'sí'; si no, 'no' (para seguir).
+    """
     if assume_yes:
         return True
-    if flag_found:
-        return ui.ask_yes_no(
-            "¿FINALIZAR la auditoría y generar el informe ahora?", default=True
-        )
-    # Sin flag: ofrecer seguir con otro vector.
-    return not ui.ask_yes_no("¿Probar otro vector?", default=False)
+    return ui.ask_yes_no("¿Finalizar y generar el informe?", default=flag_found)
 
 
 # ---------------------------------------------------------------------------
