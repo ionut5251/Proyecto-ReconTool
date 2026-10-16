@@ -1,8 +1,34 @@
+# --- Entorno Python ---
+venv/
 code/backend/venv/
-code/backend/data/screenshots/*
-!code/backend/data/screenshots/.gitkeep
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# --- Secretos (NUNCA subir) ---
 .env
+*.env
+!*.env.example
+*.key
+*.pem
+id_rsa
+id_dsa
+
+# --- Datos generados en runtime ---
+code/backend/data/screenshots/*
+!code/backend/data/screenshots/.gitkeep
+recontool-informes/
+loot/
+
+# --- Logs y temporales ---
 *.log
 .DS_Store
+Thumbs.db
+
+# --- Estado personal del editor / Obsidian ---
+.idea/
+bovrecon/.obsidian/workspace.json

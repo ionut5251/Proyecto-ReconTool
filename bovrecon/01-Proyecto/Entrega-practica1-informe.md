@@ -38,5 +38,13 @@ Ver `docs/informe-practica1/README.md`.
 1. Sustituir `[Nombre y apellidos]` en el script o editar Word.
 2. Logo Evolve oficial si el placeholder no vale.
 3. Capturas reales del navegador (§6 y §8).
-4. Sección 10 — road map visual Práctica 2.
+4. Sección 10 — road map en Word (5 ejes documentados; regenerar con `generate_practica1_informe.py`).
 5. Exportar `.docx` → PDF para campus virtual.
+
+## Road map Práctica 2 (5 ejes)
+
+1. UI + consola / IA visible y conversacional  
+2. Módulos ofensivos + orquestación toolchain local  
+3. Base de datos e historial  
+4. IA que aprende de engagements guardados  
+5. **Timeline + replay + gobernanza + Hetzner** (materializa la idea «ver el procedimiento como película»)

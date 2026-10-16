@@ -503,15 +503,112 @@ Limitaciones actuales: despliegue local en lugar de Hetzner, módulos de explota
 Con tiempo y esfuerzo, el proyecto puede evolucionar hacia un agente autónomo multi-fase (recon → explotación → post-explotación), despliegue cloud accesible desde Internet y cumplimiento íntegro de todos los requisitos formales de la práctica. La base técnica, el repositorio y la documentación ya soportan esa extensión.""",
     )
 
-    # --- 10 ROADMAP placeholder ---
+    # --- 10 ROADMAP ---
     _heading(doc, "10. Road map de mejora (Práctica 2)", 1)
     _body(
         doc,
-        "[Sección reservada — completar por el autor con el road map visual exigido en el requisito 05 del enunciado: nuevas funcionalidades, rendimiento, seguridad, integraciones y estimaciones.]",
+        """El road map siguiente recoge las líneas estratégicas acordadas para la segunda entrega. Cada eje es independiente pero se refuerzan entre sí: la base de datos (3–4) alimenta la IA; la orquestación local (2) requiere gobernanza (5); la experiencia visual y CLI (1) hace visible todo el proceso.""",
     )
 
-    doc.save(OUTPUT)
-    return OUTPUT
+    roadmap_items = [
+        (
+            "10.1 Experiencia visual y consola de operaciones (IA visible)",
+            """Objetivo: elevar la UI y ofrecer transparencia total sobre lo que hace el sistema.
+
+Mejoras planificadas:
+• Rediseño de interfaz (dashboard más rico, estados en tiempo real, mejor jerarquía visual).
+• Panel de consola integrado: stream de comandos ejecutados (nmap, smbclient, scripts) con salida en vivo, similar a una terminal embebida.
+• Modo «asistente conversacional»: la IA propone el siguiente paso y el usuario aprueba, rechaza o pide alternativa antes de ejecutar acciones sensibles.
+• Registro visual paso a paso de decisiones de la IA (vector elegido, razón, confianza).
+
+Estimación: 6–8 semanas (diseño UI + WebSocket/log streaming + integración chat).""",
+        ),
+        (
+            "10.2 Módulos ofensivos y orquestación del toolchain local",
+            """Objetivo: ampliar capacidades ofensivas y usar el software ya instalado en el equipo del analista.
+
+Mejoras planificadas:
+• Refactor de módulos FTP, Telnet y SMB; nuevos módulos (HTTP/HTTPS, SSH, RDP según scope).
+• Capa «Tool Orchestrator»: detectar binarios en PATH (nmap, smbclient, curl, etc.), ejecutarlos con permisos controlados y parsear salida.
+• Si falta una herramienta, recomendación automática (paquete Kali/Windows, enlace a documentación) según la tarea solicitada.
+• Plantillas de comandos validados por tipo de servicio, no ejecución libre sin lista blanca.
+
+Estimación: 8–10 semanas (por módulo: 1–2 semanas + orquestador común).""",
+        ),
+        (
+            "10.3 Base de datos e historial de engagements",
+            """Objetivo: no perder escaneos, procedimientos ni flags obtenidas.
+
+Mejoras planificadas:
+• Persistencia en SQLite/PostgreSQL: objetivos, resultados nmap, CVEs, fases pasiva/activa, flags, informes generados.
+• Historial buscable por IP, fecha y estado (éxito/parcial/error).
+• Versionado de cada «engagement» (sesión de trabajo) con exportación JSON/Word desde el histórico.
+• API interna para reabrir un caso y continuar donde se dejó.
+
+Estimación: 4–5 semanas (esquema + migraciones + UI de historial).""",
+        ),
+        (
+            "10.4 Aprendizaje asistido a partir de datos agregados (IA contextual)",
+            """Objetivo: que la IA mejore recomendaciones usando patrones de casos previos (privacidad y scope académico).
+
+Mejoras planificadas:
+• Embeddings o resúmenes estructurados de engagements guardados (sin datos sensibles fuera del entorno del usuario).
+• Sugerencia de vectores y comandos basada en «casos similares» (mismo puerto/servicio/OS).
+• Feedback del usuario (útil / no útil) para afinar priorización.
+• Separación estricta: aprendizaje local por instalación vs. modelo global solo si el alumno/organización lo autoriza.
+
+Estimación: 6–8 semanas (pipeline RAG + evaluación + política de datos).""",
+        ),
+        (
+            "10.5 Línea temporal, replay de sesiones y gobernanza operativa",
+            """Objetivo: cerrar el ciclo «ver → entender → demostrar → repetir» y cumplir requisitos de despliegue y seguridad del enunciado.
+
+Esta línea materializa la idea en borrador: no solo guardar datos, sino reproducir el engagement como una cronología interactiva (qué se hizo, en qué orden, qué devolvió cada herramienta y qué decidió la IA en cada momento). Útil para el máster (demostración oral), auditoría y depuración.
+
+Mejoras planificadas:
+• Timeline forense por engagement: eventos ordenados (scan, CVE, decisión IA, exploit, flag).
+• Modo replay: revisar una sesión pasada paso a paso sin re-ejecutar contra el objetivo.
+• Políticas de ejecución: scope obligatorio (solo IPs autorizadas), confirmación antes de exploit, lista blanca de comandos.
+• Despliegue profesional: Hetzner/Docker, HTTPS, variables en entorno seguro (cumplimiento requisito VPS).
+• Mejoras de rendimiento: cola de escaneos, caché NVD, ejecución paralela donde aplique.
+
+Estimación: 5–7 semanas (timeline UI + políticas) + 2–3 semanas (despliegue cloud).""",
+        ),
+    ]
+    for title, body in roadmap_items:
+        _heading(doc, title, 2)
+        _body(doc, body)
+
+    _heading(doc, "10.6 Resumen de hitos (tabla)", 2)
+    table = doc.add_table(rows=1, cols=4)
+    table.style = "Table Grid"
+    hdr = table.rows[0].cells
+    for i, text in enumerate(["Eje", "Prioridad", "Dependencias", "Horizonte"]):
+        hdr[i].text = text
+    rows = [
+        ("UI + consola IA", "Alta", "—", "Q1 post-entrega"),
+        ("Toolchain + módulos", "Alta", "Gobernanza (10.5)", "Q1–Q2"),
+        ("Base de datos", "Alta", "—", "Q1"),
+        ("IA contextual (RAG)", "Media", "Base de datos", "Q2"),
+        ("Timeline + Hetzner", "Media", "BD + logs", "Q2"),
+    ]
+    for row in rows:
+        cells = table.add_row().cells
+        for i, val in enumerate(row):
+            cells[i].text = val
+
+    _body(
+        doc,
+        "Integraciones futuras (requisito del enunciado): API Shodan/Censys para OSINT enriquecido, webhooks de alerta, exportación a SIEM o ticketing, y MCP para conectar Cursor u otros IDEs al motor de ReconTool.",
+    )
+
+    try:
+        doc.save(OUTPUT)
+        return OUTPUT
+    except PermissionError:
+        alt = OUTPUT.with_name(f"{OUTPUT.stem}_v2.docx")
+        doc.save(alt)
+        return alt
 
 
 if __name__ == "__main__":

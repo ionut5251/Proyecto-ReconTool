@@ -1,8 +1,12 @@
-# Entrega v1 — Estado del proyecto
+# Entrega v1 — Estado del proyecto (Fase 1)
 
-#recontool #entrega #v1
+#recontool #entrega #v1 #fase1
 
-Relacionado: [[Roadmap]] · [[../Indice|Índice]] · [[../07-Futuro/Informe-Word-auditoria]]
+Relacionado: [[Roadmap]] · [[Fase2-CLI-e-instalador|Fase 2 — CLI e instalador]] · [[../Indice|Índice]] · [[../07-Futuro/Informe-Word-auditoria]]
+
+---
+
+> **Esta nota documenta la Fase 1** (aplicación web). La evolución tipo ADScan (instalable + CLI guiado) está en [[Fase2-CLI-e-instalador]].
 
 ---
 
@@ -18,25 +22,26 @@ Relacionado: [[Roadmap]] · [[../Indice|Índice]] · [[../07-Futuro/Informe-Word
 | Captura flag en web | ✅ |
 | Informe Word (.docx) | ✅ |
 | Informe HTML (Kali / Firefox) | ✅ |
-| Evidencias gráficas automáticas | ✅ | [[../03-Backend/Servicio-capturas-automaticas]] |
+| Evidencias gráficas automáticas | ✅ [[../03-Backend/Servicio-capturas-automaticas]] |
 | Comando único arranque `./recontool` | ✅ |
 | Documentación bóveda Obsidian | ✅ |
 
 ---
 
-## Reservado para segunda entrega
+## Continuado en la Fase 2
 
-- Capturas automáticas durante el scan (sin copiar PNG a mano)
-- Más módulos de explotación (otras máquinas HTB easy)
-- Trazabilidad IA paso a paso en UI
-- Informe más visual (menos texto, más figuras embebidas auto)
-- Posible export PDF
+Lo que aquí quedaba "reservado" se retoma en la Fase 2 ([[Fase2-CLI-e-instalador]]):
 
-Ver [[Roadmap#v0.3 — Observabilidad y auditoría]].
+- Instalación en el equipo como programa (`install.sh` + comando `recon`).
+- Uso guiado por terminal con sesiones efímeras (borrón y cuenta nueva).
+- Informe + transcripción con comandos usados e información conseguida.
+- Pendiente: fuzzing web automático en el informe y cotejo con el PDF del enunciado.
+
+Ver [[Roadmap#v2.0 — Fase 2: CLI tipo ADScan 🔄 (en curso)]].
 
 ---
 
-## Cómo demostrar la entrega
+## Cómo demostrar la entrega (Fase 1 — web)
 
 1. Kali + VPN HTB
 2. `./recontool` desde la raíz del repo
@@ -46,21 +51,8 @@ Ver [[Roadmap#v0.3 — Observabilidad y auditoría]].
 
 ---
 
-## Comando de arranque
-
-```bash
-cd ~/Proyecto-ReconTool
-git pull
-chmod +x recontool
-./recontool
-```
-
-Instala dependencias y arranca solo — no hace falta `pip install` manual cada vez.
-
----
-
 ## Enlaces
 
 - [[../05-Operaciones/Despliegue-Kali]]
-- [[../03-Backend/Servicio-informe-Word#Capturas / evidencias gráficas]]
+- [[Fase2-CLI-e-instalador]]
 - [[../03-Backend/Servicio-FTP-exploit]]
