@@ -15,6 +15,17 @@ ReconTool escanea un objetivo autorizado, correlaciona vulnerabilidades, te **gu
 
 ---
 
+## Requisitos previos
+
+- **Sistema:** Linux basado en Debian (probado en **Kali**; vale Debian/Ubuntu).
+- **Permisos:** acceso **sudo/root** (nmap necesita privilegios; el instalador copia a `/opt`).
+- **Base:** `git` y conexión a internet para instalar. El resto de dependencias (`nmap`, `smbclient`, Python, fuentes…) las instala `install.sh`.
+- **Opcional (fuzzing web):** un fuzzer (`ffuf`, `gobuster` o `feroxbuster`) y un diccionario (p. ej. `dirb/common.txt`), ya incluidos en Kali.
+- **Opcional (IA/CVE):** clave de OpenAI o un Ollama local y clave de NVD (ver `code/backend/.env.example`). Sin ellas funciona con heurística.
+- **Entorno de pruebas:** VPN de HackTheBox o una VM de laboratorio autorizada.
+
+---
+
 ## Instalación (Linux / Kali)
 
 ```bash
@@ -66,6 +77,31 @@ Cada ejecución crea (o reutiliza) una carpeta con el nombre del objetivo en el 
 ```
 
 No hay cuentas ni base de datos: el estado vive en esa carpeta. Cambia la ubicación base con `--report-dir <carpeta>`.
+
+---
+
+## Configuración (`.env.example`)
+
+La configuración opcional (IA y consulta de CVEs) se define por variables de entorno. Copia la plantilla y rellena solo lo que uses:
+
+```bash
+cp code/backend/.env.example code/backend/.env
+```
+
+`code/backend/.env.example` incluye **todas las variables con valores ficticios** (claves de OpenAI/Ollama, NVD, nombre del auditor). No es obligatorio: sin `.env`, ReconTool usa su heurística. **Nunca** subas tu `.env` real (está en `.gitignore`).
+
+## Datos de acceso de prueba
+
+ReconTool **no tiene cuentas ni login**: es una herramienta local **sin autenticación** ni base de datos de usuarios, así que no hay credenciales de acceso al propio programa. Para probarlo se usa un **objetivo de laboratorio autorizado**, por ejemplo máquinas de HackTheBox fáciles:
+
+- **Fawn** (FTP anónimo) → `recon <IP>` → vector FTP.
+- **Crocodile** (FTP + web) → `recon <IP>` → FTP para sacar credenciales y luego Fuzz web.
+
+Las únicas "credenciales" de ejemplo son los valores ficticios de `code/backend/.env.example` (API keys de IA/NVD), que no dan acceso a nada real.
+
+## Despliegue
+
+No se usan contenedores (Docker): ReconTool necesita acceso de red y privilegios del host para `nmap`, por lo que el **despliegue es el propio instalador** (`install.sh` → comando `recon`; `uninstall.sh` para quitarlo).
 
 ---
 
