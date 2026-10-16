@@ -84,13 +84,21 @@ def _parse_hits(tool: str, output: str, base_url: str) -> list[dict]:
     return uniq
 
 
-def _build_cmd(tool: str, base_url: str, wordlist: str) -> list[str]:
+def _build_cmd(tool: str, base_url: str, wordlist: str, extensions: str = "php,txt,html") -> list[str]:
+    """Construye el comando del fuzzer con filtros de extensión.
+
+    Muchas máquinas esconden la ruta buena en un .php (p. ej. login.php): sin
+    extensiones, ffuf/gobuster no la encuentran. Por eso añadimos -e / -x.
+    """
+    exts = [e.strip().lstrip(".") for e in extensions.split(",") if e.strip()]
     if tool == "ffuf":
-        return [tool, "-u", f"{base_url}/FUZZ", "-w", wordlist,
-                "-mc", "200,204,301,302,307,401,403", "-t", "40", "-s"]
+        ffuf_ext = ",".join("." + e for e in exts)  # ".php,.txt,.html"
+        return [tool, "-u", f"{base_url}/FUZZ", "-w", wordlist, "-e", ffuf_ext,
+                "-mc", "200,204,301,302,307,401,403", "-t", "40"]
     if tool == "feroxbuster":
-        return [tool, "-u", base_url, "-w", wordlist, "-t", "40", "-q", "--no-state"]
-    return [tool, "dir", "-u", base_url, "-w", wordlist, "-t", "40", "-q"]
+        return [tool, "-u", base_url, "-w", wordlist, "-x", ",".join(exts),
+                "-t", "40", "-q", "--no-state"]
+    return [tool, "dir", "-u", base_url, "-w", wordlist, "-x", ",".join(exts), "-t", "40", "-q"]
 
 
 def run_dir_enum(base_url: str, wordlist: Optional[str] = None,

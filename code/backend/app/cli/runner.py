@@ -35,9 +35,31 @@ VECTOR_SHORT = {
 # Carpeta de trabajo / rutas
 # ---------------------------------------------------------------------------
 
+def _invoking_user_home() -> Path:
+    """Home del usuario real (no root) cuando se ejecuta con sudo."""
+    sudo_user = os.environ.get("SUDO_USER")
+    if sudo_user:
+        try:
+            import pwd as _pwd
+            return Path(_pwd.getpwnam(sudo_user).pw_dir)
+        except Exception:
+            return Path(f"/home/{sudo_user}")
+    return Path(os.path.expanduser("~"))
+
+
 def _invoking_base_dir() -> Path:
-    base = os.environ.get("RECON_INVOKE_DIR") or os.getcwd()
-    return Path(base)
+    """Base donde crear la carpeta por IP: el Escritorio del usuario (fácil de encontrar)."""
+    home = _invoking_user_home()
+    for name in ("Desktop", "Escritorio"):
+        d = home / name
+        if d.is_dir():
+            return d
+    d = home / "Desktop"
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+    except OSError:
+        return Path(os.environ.get("RECON_INVOKE_DIR") or os.getcwd())
 
 
 def _chown_tree_to_invoker(root: Path) -> None:

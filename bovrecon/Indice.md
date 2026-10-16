@@ -50,6 +50,7 @@
 | Qué tocar / qué no | [[06-Reglas/Que-tocar-y-que-no]] |
 | Actualizar docs | [[06-Reglas/Mantenimiento-documentacion]] |
 | Futuro: trazas IA + Word | [[07-Futuro/Auditoria-y-trazabilidad-IA]] |
+| **🔮 Futuro: memoria IA + biblioteca de comandos** | [[07-Futuro/Memoria-IA-y-biblioteca-comandos]] |
 
 ---
 
