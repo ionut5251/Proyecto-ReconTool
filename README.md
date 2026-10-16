@@ -75,14 +75,15 @@ No hay cuentas ni base de datos: el estado vive en esa carpeta. Cambia la ubicac
 Proyecto-ReconTool/
 ├── install.sh / uninstall.sh   # instalador Fase 2
 ├── recontool                   # arranque de la web (Fase 1)
-├── code/
+├── code/                       # lo ÚNICO que instala install.sh
 │   ├── backend/                # FastAPI + servicios + app/cli (CLI Fase 2)
 │   └── frontend/               # UI web (Fase 1)
-├── bovrecon/                   # documentación viva (Obsidian)
-└── docs/                       # informe de la práctica 1
+├── bovrecon/                   # documentación viva (Obsidian) — NO se instala
+├── docs/                       # informe P1 (+ futuros writeups para la IA)
+└── tools/                      # utilidades (+ futura comprobación de dependencias)
 ```
 
-La **documentación completa** (arquitectura, decisiones, roadmap) vive en la bóveda Obsidian `bovrecon/` — empieza por `bovrecon/Indice.md`.
+Solo `code/` se copia al instalar (`/opt/recontool`). `bovrecon/`, `docs/` y `tools/` son material del repo que **no hace falta para ejecutar** el programa. La **documentación completa** (arquitectura, decisiones, roadmap) vive en la bóveda Obsidian `bovrecon/` — empieza por `bovrecon/Indice.md`.
 
 ---
 

@@ -35,6 +35,18 @@ Relacionado: [[../Indice|Índice]] · [[../01-Proyecto/Fase2-CLI-e-instalador]] 
 
 ---
 
+## Carpetas reservadas para el futuro
+
+- **`tools/`** — utilidades de **comprobación e instalación de dependencias**. Al
+  instalar en una Kali "virgen", comprobar si ya están `nmap`, `smbclient`, `ffuf`,
+  `john`, etc., y si falta alguno **instalarlo pidiendo permiso** al usuario (s/n).
+- **`docs/`** — repositorio de **writeups** de máquinas de los que el motor de IA
+  sacará patrones de ataque/enumeración (ver la sección 1 de esta nota).
+- **`bovrecon/`** — documentación viva (Obsidian). No es imprescindible para
+  ejecutar el programa y **no se instala**; vive en el repo como documentación.
+
+---
+
 ## Enlaces
 
 - [[../01-Proyecto/Roadmap]]

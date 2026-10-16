@@ -32,3 +32,6 @@ Thumbs.db
 # --- Estado personal del editor / Obsidian ---
 .idea/
 bovrecon/.obsidian/workspace.json
+
+# --- Material local que no forma parte del programa ---
+pics/
