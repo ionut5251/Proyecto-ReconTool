@@ -284,18 +284,37 @@ def _run_ftp(session: ReconSession, port: int) -> None:
 
 
 def _open_in_browser(url: str) -> None:
+    """Abre la URL en el navegador del usuario real.
+
+    `recon` corre como root (sudo), así que para abrir Firefox en la sesión
+    gráfica del usuario hay que lanzarlo como ese usuario y pasarle DISPLAY y
+    XAUTHORITY; si no, xdg-open no encuentra el entorno gráfico y no abre nada.
+    """
     import shutil
     import subprocess
 
-    sudo_user = os.environ.get("SUDO_USER")
-    opener = shutil.which("xdg-open") or shutil.which("firefox")
-    if not opener:
+    browser = next((b for b in ("firefox-esr", "firefox", "xdg-open", "sensible-browser", "chromium")
+                    if shutil.which(b)), None)
+    if not browser:
         ui.info(f"Ábrelo tú en el navegador: {url}")
         return
+
+    sudo_user = os.environ.get("SUDO_USER")
     try:
-        cmd = ["sudo", "-u", sudo_user, opener, url] if sudo_user else [opener, url]
-        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        ui.ok(f"Abriendo {url} en el navegador...")
+        if sudo_user:
+            try:
+                import pwd as _pwd
+                home = _pwd.getpwnam(sudo_user).pw_dir
+            except Exception:
+                home = f"/home/{sudo_user}"
+            display = os.environ.get("DISPLAY") or ":0"
+            xauth = os.environ.get("XAUTHORITY") or f"{home}/.Xauthority"
+            cmd = ["sudo", "-u", sudo_user, "env",
+                   f"DISPLAY={display}", f"XAUTHORITY={xauth}", browser, url]
+        else:
+            cmd = [browser, url]
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        ui.ok(f"Abriendo {url} en el navegador (si no se abre solo, ábrelo tú).")
     except Exception as exc:
         ui.info(f"No pude abrir el navegador ({exc}). Ábrelo tú: {url}")
 
